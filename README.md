@@ -73,7 +73,7 @@ The relayer operates as a **private-key-controlled liquidity hub** that:
 ### Installation
    ```bash
 # Clone the repository
-   git clone https://github.com/your-username/pocket-protocol
+   git clone https://github.com/manovHacksaw/pocket-protocol
    cd pocket-protocol
 
 # Install dependencies
