@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createWalletClient, createPublicClient, http, parseEther, formatEther, keccak256, encodePacked } from "viem";
+import { createWalletClient, createPublicClient, http, parseEther, formatEther } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { u2uSolaris } from "@/lib/config";
-import { POCKET_PROTOCOL_SEPOLIA, POCKET_PROTOCOL_ABI, SEPOLIA_POOL, SEPOLIA_POOL_ABI } from "@/lib/contracts";
-import U2U_BRIDGE_ABI from "@/artifacts/contracts/U2UBridge.sol/U2UBridge.json";
+import { U2U_BRIDGE_ABI } from "@/lib/contracts";
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL!;
 const U2U_RPC_URL = process.env.U2U_RPC_URL || "https://rpc-mainnet.u2u.xyz";
@@ -35,7 +34,7 @@ async function fetchTokenPrices() {
 }
 
 // Check liquidity on both chains
-async function checkLiquidity(account: any, u2uAmount: bigint, ethAmount: bigint) {
+async function checkLiquidity(account: { address: `0x${string}` }, u2uAmount: bigint, ethAmount: bigint) {
   try {
     // Check U2U balance
     const u2uClient = createPublicClient({
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
           );
         }
         console.log(`U2U transaction confirmed: ${u2uTxHash}`);
-      } catch (error) {
+      } catch {
         return NextResponse.json(
           { success: false, error: "Failed to validate U2U transaction" },
           { status: 400 }
@@ -210,184 +209,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Legacy actions for backward compatibility
-    if (action === 'stake' && transferId) {
-      // Handle staking: Release ETH from pool and mint equivalent Sepolia ETH
-      console.log(`Processing stake: ${amount} ETH for ${recipient}, transferId: ${transferId}`);
-      
-      // First, release ETH from the Sepolia pool
-      const txHash = await sepoliaWalletClient.writeContract({
-        address: SEPOLIA_POOL as `0x${string}`,
-        abi: SEPOLIA_POOL_ABI,
-        functionName: 'release',
-        args: [
-          transferId as `0x${string}`,
-          recipient as `0x${string}`,
-          parseEther(amount.toString())
-        ],
-      });
-
-      const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      
-      console.log(`ETH released from pool: ${txHash}`);
-
-      // Send additional Sepolia ETH to the recipient (simulating minting)
-      const mintTxHash = await sepoliaWalletClient.sendTransaction({
-        to: recipient as `0x${string}`,
-        value: parseEther(amount.toString()),
-      });
-
-      const mintReceipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: mintTxHash as `0x${string}` });
-      
-      console.log(`Sepolia ETH minted: ${mintTxHash}`);
-
-      return NextResponse.json({
-        success: true,
-        txHash,
-        mintTxHash,
-        receipt: {
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber.toString(),
-          gasUsed: receipt.gasUsed.toString(),
-          status: receipt.status,
-        },
-        mintReceipt: {
-          transactionHash: mintReceipt.transactionHash,
-          blockNumber: mintReceipt.blockNumber.toString(),
-          gasUsed: mintReceipt.gasUsed.toString(),
-          status: mintReceipt.status,
-        },
-        message: `Stake processed: ${amount} ETH released and minted for ${recipient}`,
-      });
-    } else if (action === 'swap') {
-      // Handle swap: Convert U2U to ETH and send to recipient
-      console.log(`✅ Processing swap: ${amount} U2U for ${recipient}, transferId: ${transferId}`);
-      
-      // Ensure recipient is not the relayer's own address
-      if (recipient.toLowerCase() === account.address.toLowerCase()) {
-        return NextResponse.json(
-          { success: false, error: "Cannot send to relayer's own address" },
-          { status: 400 }
-        );
-      }
-      
-      // Fetch current prices and convert U2U to ETH
-      const { u2uPrice, ethPrice } = await fetchTokenPrices();
-      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
-      
-      const u2uAmountUSD = parseFloat(amount) * u2uPrice;
-      const equivalentEthAmount = u2uAmountUSD / ethPrice;
-      
-      // Ensure the amount is in proper decimal format (not scientific notation)
-      const ethAmountString = equivalentEthAmount.toFixed(18); // Use 18 decimals for precision
-      const ethAmountWei = parseEther(ethAmountString);
-      
-      console.log(`Converting ${amount} U2U ($${u2uAmountUSD.toFixed(2)}) to ${ethAmountString} ETH`);
-      
-      // Check liquidity before proceeding
-      const liquidityCheck = await checkLiquidity(account, parseEther(amount), ethAmountWei);
-      
-      if (liquidityCheck.insufficientETH) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: "Swap temporarily unavailable: insufficient liquidity on Sepolia.",
-            details: {
-              required: equivalentEthAmount.toString(),
-              available: liquidityCheck.ethBalance,
-              chain: "Sepolia"
-            }
-          },
-          { status: 503 }
-        );
-      }
-      
-      // Send equivalent ETH to the recipient
-      const txHash = await sepoliaWalletClient.sendTransaction({
-        to: recipient as `0x${string}`,
-        value: ethAmountWei,
-      });
-
-      const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      
-      console.log(`Sepolia ETH minted for swap: ${txHash}`);
-
-      return NextResponse.json({
-        success: true,
-        txHash,
-        receipt: {
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber.toString(),
-          gasUsed: receipt.gasUsed.toString(),
-          status: receipt.status,
-        },
-        message: `Swap processed: ${ethAmountString} ETH minted for ${recipient} (from ${amount} U2U)`,
-      });
-    } else if (action === 'swap-eth-to-u2u') {
-      // Handle reverse swap: Convert ETH to U2U and send to recipient
-      console.log(`✅ Processing reverse swap: ${amount} ETH for ${recipient}, transferId: ${transferId}`);
-      
-      // Ensure recipient is not the relayer's own address
-      if (recipient.toLowerCase() === account.address.toLowerCase()) {
-        return NextResponse.json(
-          { success: false, error: "Cannot send to relayer's own address" },
-          { status: 400 }
-        );
-      }
-      
-      // Fetch current prices and convert ETH to U2U
-      const { u2uPrice, ethPrice } = await fetchTokenPrices();
-      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
-      
-      const ethAmountUSD = parseFloat(amount) * ethPrice;
-      const equivalentU2UAmount = ethAmountUSD / u2uPrice;
-      
-      // Ensure the amount is in proper decimal format (not scientific notation)
-      const u2uAmountString = equivalentU2UAmount.toFixed(18); // Use 18 decimals for precision
-      const u2uAmountWei = parseEther(u2uAmountString);
-      
-      console.log(`Converting ${amount} ETH ($${ethAmountUSD.toFixed(2)}) to ${u2uAmountString} U2U`);
-      
-      // Check liquidity before proceeding
-      const liquidityCheck = await checkLiquidity(account, u2uAmountWei, parseEther(amount));
-      
-      if (liquidityCheck.insufficientU2U) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: "Swap temporarily unavailable: insufficient liquidity on U2U.",
-            details: {
-              required: equivalentU2UAmount.toString(),
-              available: liquidityCheck.u2uBalance,
-              chain: "U2U"
-            }
-          },
-          { status: 503 }
-        );
-      }
-      
-      // Send equivalent U2U to the recipient
-      const txHash = await u2uWalletClient.sendTransaction({
-        to: recipient as `0x${string}`,
-        value: u2uAmountWei,
-      });
-
-      const receipt = await u2uPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      
-      console.log(`U2U sent for reverse swap: ${txHash}`);
-
-      return NextResponse.json({
-        success: true,
-        txHash,
-        receipt: {
-          transactionHash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber.toString(),
-          gasUsed: receipt.gasUsed.toString(),
-          status: receipt.status,
-        },
-        message: `Reverse swap processed: ${u2uAmountString} U2U sent to ${recipient} (from ${amount} ETH)`,
-      });
-    } else if (action === 'bridge-eth-to-weth') {
+    if (action === 'bridge-eth-to-weth') {
       // Handle bridge: ETH (Sepolia) → WETH (U2U)
       console.log(`✅ Processing bridge: ${amount} ETH to WETH for ${recipient}, transferId: ${transferId}`);
       
@@ -404,7 +226,7 @@ export async function POST(request: NextRequest) {
             );
           }
           console.log(`✅ Sepolia transaction confirmed: ${sepoliaTxHash}`);
-        } catch (error) {
+        } catch {
           return NextResponse.json(
             { success: false, error: "Failed to validate Sepolia transaction" },
             { status: 400 }
@@ -488,6 +310,118 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+    } else if (action === 'swap') {
+      // Handle swap: U2U (U2U Solaris) → ETH (Sepolia)
+      console.log(`✅ Processing swap: ${amount} U2U to ETH for ${recipient}, transferId: ${transferId}`);
+      
+      // Fetch current prices and convert U2U to ETH
+      const { u2uPrice, ethPrice } = await fetchTokenPrices();
+      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
+      
+      const u2uAmountUSD = parseFloat(amount) * u2uPrice;
+      const equivalentEthAmount = u2uAmountUSD / ethPrice;
+      
+      // Ensure the amount is in proper decimal format (not scientific notation)
+      const ethAmountString = equivalentEthAmount.toFixed(18); // Use 18 decimals for precision
+      const ethAmountWei = parseEther(ethAmountString);
+      
+      console.log(`Converting ${amount} U2U ($${u2uAmountUSD.toFixed(2)}) to ${ethAmountString} ETH`);
+      
+      // Check liquidity before proceeding
+      const liquidityCheck = await checkLiquidity(account, parseEther(amount), ethAmountWei);
+      
+      if (liquidityCheck.insufficientETH) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "Swap temporarily unavailable: insufficient liquidity on Sepolia.",
+            details: {
+              required: equivalentEthAmount.toString(),
+              available: liquidityCheck.ethBalance,
+              chain: "Sepolia"
+            }
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Send equivalent ETH to the recipient
+      const txHash = await sepoliaWalletClient.sendTransaction({
+        to: recipient as `0x${string}`,
+        value: ethAmountWei,
+      });
+
+      const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      
+      console.log(`ETH sent for swap: ${txHash}`);
+
+      return NextResponse.json({
+        success: true,
+        txHash,
+        receipt: {
+          transactionHash: receipt.transactionHash,
+          blockNumber: receipt.blockNumber.toString(),
+          gasUsed: receipt.gasUsed.toString(),
+          status: receipt.status,
+        },
+        message: `Swap processed: ${ethAmountString} ETH sent to ${recipient} (from ${amount} U2U)`,
+      });
+    } else if (action === 'swap-eth-to-u2u') {
+      // Handle swap: ETH (Sepolia) → U2U (U2U Solaris)
+      console.log(`✅ Processing swap: ${amount} ETH to U2U for ${recipient}, transferId: ${transferId}`);
+      
+      // Fetch current prices and convert ETH to U2U
+      const { u2uPrice, ethPrice } = await fetchTokenPrices();
+      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
+      
+      const ethAmountUSD = parseFloat(amount) * ethPrice;
+      const equivalentU2UAmount = ethAmountUSD / u2uPrice;
+      
+      // Ensure the amount is in proper decimal format (not scientific notation)
+      const u2uAmountString = equivalentU2UAmount.toFixed(18); // Use 18 decimals for precision
+      const u2uAmountWei = parseEther(u2uAmountString);
+      
+      console.log(`Converting ${amount} ETH ($${ethAmountUSD.toFixed(2)}) to ${u2uAmountString} U2U`);
+      
+      // Check liquidity before proceeding
+      const liquidityCheck = await checkLiquidity(account, u2uAmountWei, parseEther(amount));
+      
+      if (liquidityCheck.insufficientU2U) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "Swap temporarily unavailable: insufficient liquidity on U2U.",
+            details: {
+              required: equivalentU2UAmount.toString(),
+              available: liquidityCheck.u2uBalance,
+              chain: "U2U"
+            }
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Send equivalent U2U to the recipient
+      const txHash = await u2uWalletClient.sendTransaction({
+        to: recipient as `0x${string}`,
+        value: u2uAmountWei,
+      });
+
+      const receipt = await u2uPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      
+      console.log(`U2U sent for swap: ${txHash}`);
+
+      return NextResponse.json({
+        success: true,
+        txHash,
+        receipt: {
+          transactionHash: receipt.transactionHash,
+          blockNumber: receipt.blockNumber.toString(),
+          gasUsed: receipt.gasUsed.toString(),
+          status: receipt.status,
+        },
+        message: `Swap processed: ${u2uAmountString} U2U sent to ${recipient} (from ${amount} ETH)`,
+      });
     } else {
       // Default behavior: send ETH directly to recipient
       console.log(`❌ Using default behavior - action: ${action}, transferId: ${transferId}`);

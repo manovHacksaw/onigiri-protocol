@@ -32,7 +32,6 @@ export function BridgeCard({ className }: { className?: string }) {
   } = useBridge()
 
   const [fromAmount, setFromAmount] = useState("")
-  const [toAmount, setToAmount] = useState("")
 
   const handleBridge = async () => {
     if (!fromAmount || !address) return

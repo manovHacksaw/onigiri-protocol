@@ -25,7 +25,7 @@ const MOCK_PRICES: Record<string, number> = {
   'WBTC': 65000,   // Wrapped Bitcoin
 };
 
-export async function fetchTokenPrice(symbol: string, chainId: number): Promise<number> {
+export async function fetchTokenPrice(symbol: string): Promise<number> {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 100));
   
@@ -41,14 +41,14 @@ export async function getSwapQuote(
   fromToken: string,
   toToken: string,
   fromAmount: string,
-  fromChainId: number,
-  toChainId: number
+  _fromChainId: number,
+  _toChainId: number
 ): Promise<SwapQuote> {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  const fromPrice = await fetchTokenPrice(fromToken, fromChainId);
-  const toPrice = await fetchTokenPrice(toToken, toChainId);
+  const fromPrice = await fetchTokenPrice(fromToken);
+  const toPrice = await fetchTokenPrice(toToken);
   
   console.log(`Quote calculation: ${fromAmount} ${fromToken} @ $${fromPrice} → ${toToken} @ $${toPrice}`);
   

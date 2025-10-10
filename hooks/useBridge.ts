@@ -11,7 +11,7 @@ import { parseEther, formatEther } from "viem";
 import {
   U2U_BRIDGE_ADDRESS,
   SEPOLIA_BRIDGE_ADDRESS,
-  ROOTSTOCK_BRIDGE_ABI,
+  U2U_BRIDGE_ABI,
   SEPOLIA_BRIDGE_ABI,
 } from "@/lib/contracts";
 import { u2uSolaris, sepolia } from "@/lib/config";
@@ -103,9 +103,9 @@ export function useBridge() {
       // First, send U2U to the bridge contract on U2U Solaris
       writeContract({
         address: U2U_BRIDGE_ADDRESS,
-        abi: ROOTSTOCK_BRIDGE_ABI, // Using same ABI for now
+        abi: U2U_BRIDGE_ABI.abi,
         functionName: "bridge",
-        args: [],
+        args: [11155111, address], // destinationChainId (Sepolia = 11155111), recipient
         chainId: u2uSolaris.id,
         value: parseEther(amount), // Send native U2U as msg.value
       });

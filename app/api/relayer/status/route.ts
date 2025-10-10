@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createWalletClient, http, formatEther } from 'viem';
+import { createPublicClient, http, formatEther } from 'viem';
 import { sepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 
@@ -10,13 +10,12 @@ const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY || "c8316c9978a2218e
 export async function GET() {
   try {
     const account = privateKeyToAccount(RELAYER_PRIVATE_KEY as `0x${string}`);
-    const walletClient = createWalletClient({
-      account,
+    const publicClient = createPublicClient({
       chain: sepolia,
       transport: http(SEPOLIA_RPC_URL),
     });
 
-    const balance = await walletClient.getBalance({ address: account.address });
+    const balance = await publicClient.getBalance({ address: account.address });
     
     return NextResponse.json({
       success: true,

@@ -1,6 +1,5 @@
 import { Navbar } from "@/components/navbar";
 import { BokehBackground } from "@/components/ui/bokeh-background";
-import { StakeCard } from "@/components/stake-card";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Users } from "lucide-react";
@@ -122,28 +121,27 @@ export default function PoolPage() {
             ))}
           </div>
 
-          {/* Stake Component */}
+          {/* Pool Stats */}
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold mb-6">Stake Tokens</h2>
-            <StakeCard />
+            <h2 className="text-2xl font-semibold mb-6">Pool Statistics</h2>
             
             <Card className="p-6 border border-white/10 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/40">
               <div className="flex items-center gap-3 mb-4">
                 <Users className="w-5 h-5 text-muted-foreground" />
-                <h3 className="font-semibold">Staking Stats</h3>
+                <h3 className="font-semibold">Pool Stats</h3>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Staked</span>
-                  <span className="font-semibold">$12.4M</span>
+                  <span className="text-muted-foreground">Total TVL</span>
+                  <span className="font-semibold">$8.5M</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Active Stakers</span>
-                  <span className="font-semibold">2,847</span>
+                  <span className="text-muted-foreground">Active Pools</span>
+                  <span className="font-semibold">4</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Avg. APY</span>
-                  <span className="font-semibold text-green-400">14.2%</span>
+                  <span className="font-semibold text-green-400">13.7%</span>
                 </div>
               </div>
             </Card>

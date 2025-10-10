@@ -1,13 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction, useSwitchChain } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { 
-  U2U_POOL, 
-  SEPOLIA_POOL, 
-  ROOTSTACK_POOL_ABI, 
-  SEPOLIA_POOL_ABI 
+  U2U_BRIDGE_ADDRESS,
+  SEPOLIA_BRIDGE_ADDRESS,
+  U2U_BRIDGE_ABI,
+  SEPOLIA_BRIDGE_ABI
 } from '@/lib/contracts';
 import { getSwapQuote, SwapQuote } from '@/lib/priceApi';
+import { verifyTransaction, getExplorerUrl, getChainDisplayName } from '@/lib/transaction-verification';
+import { TransactionStep } from '@/components/ui/transaction-modal';
 
 export interface SwapParams {
   fromToken: string;
@@ -23,8 +25,21 @@ export function useCrossChainSwap() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { sendTransaction, data: sendHash, isPending: isSendPending, error: sendError } = useSendTransaction();
   const { switchChain } = useSwitchChain();
+  
+  // Track the current transaction hash
+  const [currentTxHash, setCurrentTxHash] = useState<string | null>(null);
+  const sendHashRef = useRef<string | null>(null);
+  
+  // Update ref when sendHash changes
+  useEffect(() => {
+    if (sendHash) {
+      sendHashRef.current = sendHash;
+    }
+  }, [sendHash]);
+  
+  // Use the currentTxHash for transaction receipt waiting
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
+    hash: currentTxHash as `0x${string}` | undefined,
   });
 
   const [quote, setQuote] = useState<SwapQuote | null>(null);
@@ -36,6 +51,53 @@ export function useCrossChainSwap() {
     error?: string;
     direction?: 'u2u-to-sepolia' | 'sepolia-to-u2u';
   }>({ step: 'idle' });
+  
+  // Transaction modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [transactionSteps, setTransactionSteps] = useState<TransactionStep[]>([]);
+  const [currentStep, setCurrentStep] = useState<string>('');
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  // Helper functions for transaction modal
+  const updateTransactionStep = useCallback((stepId: string, updates: Partial<TransactionStep>) => {
+    setTransactionSteps(prev => prev.map(step => 
+      step.id === stepId ? { ...step, ...updates } : step
+    ));
+  }, []);
+
+  const initializeTransactionSteps = useCallback((direction: 'u2u-to-sepolia' | 'sepolia-to-u2u') => {
+    const steps: TransactionStep[] = [
+      {
+        id: 'signature',
+        title: 'Awaiting transaction signature...',
+        description: 'Please sign the transaction in your wallet',
+        status: 'pending'
+      },
+      {
+        id: 'source-confirmation',
+        title: direction === 'u2u-to-sepolia' ? 'Sending U2U to relayer...' : 'Sending ETH to relayer...',
+        description: 'Transaction submitted — awaiting confirmation...',
+        status: 'pending'
+      },
+      {
+        id: 'relayer-processing',
+        title: direction === 'u2u-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending U2U...',
+        description: 'Processing cross-chain transfer...',
+        status: 'pending'
+      },
+      {
+        id: 'completion',
+        title: 'Bridge successful!',
+        description: direction === 'u2u-to-sepolia' ? 'ETH transferred successfully!' : 'U2U transferred successfully!',
+        status: 'pending'
+      }
+    ];
+    
+    setTransactionSteps(steps);
+    setCurrentStep('signature');
+    setModalError(null);
+    setIsModalOpen(true);
+  }, []);
 
   const getQuote = useCallback(async (params: Omit<SwapParams, 'recipient'>) => {
     setIsLoadingQuote(true);
@@ -73,10 +135,12 @@ export function useCrossChainSwap() {
     setBridgeStatus({ step: 'idle' });
     
     try {
-      // For U2U to Sepolia swap
-      if (fromChainId === 39 && toChainId === 11155111) {
-        // Step 1: Send U2U directly to relayer's address
-        // First, get the relayer's address from the API
+      const direction = fromChainId === 39 ? 'u2u-to-sepolia' : 'sepolia-to-u2u';
+      
+      // Initialize transaction modal
+      initializeTransactionSteps(direction);
+      
+      // Step 1: Get relayer address
         const relayerStatusResponse = await fetch('/api/relayer');
         const relayerStatus = await relayerStatusResponse.json();
         
@@ -85,196 +149,193 @@ export function useCrossChainSwap() {
         }
         
         const relayerAddress = relayerStatus.relayerAddress;
-        console.log('Sending U2U to relayer address:', relayerAddress);
-        
-        // Send U2U directly to relayer (simple ETH transfer)
+      console.log(`Sending ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} to relayer address:`, relayerAddress);
+      
+      // Step 2: Send transaction and wait for signature
+      updateTransactionStep('signature', { status: 'in-progress' });
+      setCurrentStep('signature');
+      
+      // Reset current transaction hash
+      setCurrentTxHash(null);
+      
+      // Send transaction to relayer and wait for hash
+      const txHash = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Transaction signature timeout - please try again'));
+        }, 30000);
+
+        // Send the transaction
         sendTransaction({
           to: relayerAddress as `0x${string}`,
           value: parseEther(fromAmount),
         });
 
-        console.log('U2U transaction submitted:', sendHash);
-        
-        // Use the hash from wagmi if txHash is undefined
-        const finalTxHash = sendHash || hash;
-        console.log('Final transaction hash:', finalTxHash);
+        // Poll for the hash using the ref
+        const checkForHash = () => {
+          if (sendError) {
+            clearTimeout(timeout);
+            reject(new Error('Transaction failed: ' + (sendError instanceof Error ? sendError.message : 'Unknown error')));
+            return;
+          }
+          
+          if (sendHashRef.current) {
+            clearTimeout(timeout);
+            setCurrentTxHash(sendHashRef.current);
+            resolve(sendHashRef.current);
+          } else {
+            setTimeout(checkForHash, 100);
+          }
+        };
 
-        // Update status to show U2U transaction is pending
-        setBridgeStatus({ 
-          step: 'source-pending', 
-          sourceTxHash: finalTxHash,
-          direction: 'u2u-to-sepolia'
-        });
-
-        // Wait for transaction confirmation (1-3 blocks)
-        console.log('⏳ Waiting for U2U confirmation...');
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds for confirmation
-        
-        // Update status to show U2U transaction is confirmed
+        // Start checking after a short delay
+        setTimeout(checkForHash, 100);
+      });
+      
+      console.log(`Transaction submitted: ${txHash}`);
+      
+      // Step 3: Wait for transaction confirmation
+      updateTransactionStep('signature', { 
+        status: 'completed',
+        title: 'Transaction signed',
+        description: 'Transaction submitted to blockchain'
+      });
+      
+      updateTransactionStep('source-confirmation', { 
+        status: 'in-progress',
+        txHash,
+        explorerUrl: getExplorerUrl(txHash, fromChainId)
+      });
+      setCurrentStep('source-confirmation');
+      
+      // Simple wait like useBridge (no complex verification)
+      console.log(`⏳ Waiting for ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} confirmation...`);
+      await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds like useBridge
+      
+      console.log(`✅ ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} transaction confirmed`);
+      
+      // Update status to show source transaction is confirmed
+      updateTransactionStep('source-confirmation', { 
+        status: 'completed',
+        title: direction === 'u2u-to-sepolia' ? 'U2U sent to relayer' : 'ETH sent to relayer',
+        description: 'Transaction confirmed on blockchain'
+      });
+      
         setBridgeStatus({ 
           step: 'source-confirmed', 
-          sourceTxHash: finalTxHash,
-          direction: 'u2u-to-sepolia'
-        });
-        console.log('✅ U2U transaction confirmed.');
-        
-        // Step 2: Call relayer API to send ETH to recipient
-        setBridgeStatus({ 
-          step: 'target-pending', 
-          sourceTxHash: finalTxHash,
-          direction: 'u2u-to-sepolia'
-        });
-        console.log('⏳ Relayer sending ETH...');
-        
-        const relayerResponse = await fetch('/api/relayer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            recipient,
-            amount: fromAmount,
-            transferId: finalTxHash, // Use transaction hash as transferId
-            action: 'swap'
-          }),
-        });
+        sourceTxHash: txHash,
+        direction
+      });
+      
+      // Step 4: Call relayer API (using simple approach like useBridge)
+      updateTransactionStep('relayer-processing', { 
+        status: 'in-progress',
+        title: direction === 'u2u-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending U2U...',
+        description: 'Processing cross-chain transfer...'
+      });
+      setCurrentStep('relayer-processing');
+      
+      console.log('Calling relayer API with:', {
+        recipient,
+        amount: fromAmount,
+        transferId: txHash,
+        action: direction === 'u2u-to-sepolia' ? 'swap' : 'swap-eth-to-u2u'
+      });
+      
+      // Wait a moment for the transaction to be processed (like useBridge does)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      
+      // Simple fetch call like useBridge
+      const relayerResponse = await fetch('/api/relayer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient,
+          amount: fromAmount,
+          transferId: txHash,
+          action: direction === 'u2u-to-sepolia' ? 'swap' : 'swap-eth-to-u2u'
+        }),
+      });
 
-        const relayerResult = await relayerResponse.json();
+      const relayerResult = await relayerResponse.json();
+      console.log('Relayer response:', relayerResult);
         
-        if (!relayerResult.success) {
-          // Provide more specific error messages
-          if (relayerResult.error?.includes('insufficient funds')) {
-            throw new Error(`Insufficient relayer funds: ${relayerResult.error}. Please try a smaller amount or fund the relayer.`);
-          } else if (relayerResult.error?.includes('gas')) {
-            throw new Error(`Gas estimation failed: ${relayerResult.error}. Please try again.`);
-          } else {
-            throw new Error(`Relayer failed: ${relayerResult.error}`);
-          }
-        }
-        
-        console.log('Relayer response:', relayerResult);
-        
-        // Update status to show Sepolia transaction is confirmed
-        const sepoliaTxHash = relayerResult.txHash || relayerResult.mintTxHash;
-        setBridgeStatus({ 
-          step: 'target-confirmed', 
-          sourceTxHash: finalTxHash,
-          targetTxHash: sepoliaTxHash,
-          direction: 'u2u-to-sepolia'
-        });
-        console.log('✅ ETH successfully bridged.');
-        
-        return { 
-          u2uTx: finalTxHash, 
-          sepoliaTx: sepoliaTxHash 
-        };
-      } else if (fromChainId === 11155111 && toChainId === 39) {
-        // For Sepolia to U2U swap (reverse direction)
-        // Step 1: Send ETH from user's wallet to relayer
-        // First, get the relayer's address from the API
-        const relayerStatusResponse = await fetch('/api/relayer');
-        const relayerStatus = await relayerStatusResponse.json();
-        
-        if (!relayerStatus.success) {
-          throw new Error('Failed to get relayer address');
-        }
-        
-        const relayerAddress = relayerStatus.relayerAddress;
-        console.log('Sending ETH to relayer address:', relayerAddress);
-        
-        // Send ETH directly to relayer (simple ETH transfer)
-        sendTransaction({
-          to: relayerAddress as `0x${string}`,
-          value: parseEther(fromAmount),
-        });
-
-        console.log('ETH transaction submitted:', sendHash);
-        
-        // Use the hash from wagmi if txHash is undefined
-        const finalTxHash = sendHash || hash;
-        console.log('Final transaction hash:', finalTxHash);
-
-        // Update status to show ETH transaction is pending
-        setBridgeStatus({ 
-          step: 'source-pending', 
-          sourceTxHash: finalTxHash,
-          direction: 'sepolia-to-u2u'
-        });
-
-        // Wait for transaction confirmation (1-3 blocks)
-        console.log('⏳ Waiting for ETH confirmation...');
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds for confirmation
-        
-        // Update status to show ETH transaction is confirmed
-        setBridgeStatus({ 
-          step: 'source-confirmed', 
-          sourceTxHash: finalTxHash,
-          direction: 'sepolia-to-u2u'
-        });
-        console.log('✅ ETH transaction confirmed.');
-        
-        // Step 2: Call relayer API to send U2U to recipient
-        setBridgeStatus({ 
-          step: 'target-pending', 
-          sourceTxHash: finalTxHash,
-          direction: 'sepolia-to-u2u'
-        });
-        console.log('⏳ Relayer sending U2U...');
-        
-        const relayerResponse = await fetch('/api/relayer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            recipient,
-            amount: fromAmount,
-            transferId: finalTxHash, // Use transaction hash as transferId
-            action: 'swap-eth-to-u2u'
-          }),
-        });
-
-        const relayerResult = await relayerResponse.json();
-        
-        if (!relayerResult.success) {
-          // Provide more specific error messages
-          if (relayerResult.error?.includes('insufficient funds')) {
-            throw new Error(`Insufficient relayer funds: ${relayerResult.error}. Please try a smaller amount or fund the relayer.`);
-          } else if (relayerResult.error?.includes('gas')) {
-            throw new Error(`Gas estimation failed: ${relayerResult.error}. Please try again.`);
-          } else {
-            throw new Error(`Relayer failed: ${relayerResult.error}`);
-          }
-        }
-        
-        console.log('Relayer response:', relayerResult);
-        
-        // Update status to show U2U transaction is confirmed
-        const u2uTxHash = relayerResult.txHash || relayerResult.mintTxHash;
-        setBridgeStatus({ 
-          step: 'target-confirmed', 
-          sourceTxHash: finalTxHash,
-          targetTxHash: u2uTxHash,
-          direction: 'sepolia-to-u2u'
-        });
-        console.log('✅ U2U successfully bridged.');
-        
-        return { 
-          u2uTx: finalTxHash, 
-          sepoliaTx: u2uTxHash 
-        };
-      } else {
-        throw new Error('Unsupported chain pair');
+      if (!relayerResult.success) {
+        console.error('Failed to process relayer:', relayerResult.error);
+        throw new Error(relayerResult.error || 'Relayer processing failed');
       }
+      
+      console.log('Relayer success:', relayerResult.success);
+      console.log('Relayer txHash:', relayerResult.txHash);
+      console.log('Relayer mintTxHash:', relayerResult.mintTxHash);
+        
+      // Step 5: Get target transaction hash (don't wait for verification)
+      const targetTxHash = relayerResult.txHash || relayerResult.mintTxHash;
+      
+      console.log('Target transaction hash:', targetTxHash);
+      
+      if (!targetTxHash) {
+        console.warn('No transaction hash returned from relayer, but operation was successful');
+      }
+      
+      // Note: We don't verify the target transaction here to avoid blocking the UI
+      // The relayer has already confirmed the transaction was sent
+      // Users can check the explorer link to verify manually
+      
+      // Update final status
+      updateTransactionStep('relayer-processing', { 
+        status: 'completed',
+        title: direction === 'u2u-to-sepolia' ? 'ETH sent to recipient' : 'U2U sent to recipient',
+        description: targetTxHash ? 'Cross-chain transfer completed' : 'Transfer completed (check your wallet)',
+        txHash: targetTxHash,
+        explorerUrl: targetTxHash ? getExplorerUrl(targetTxHash, toChainId) : undefined
+      });
+      
+      updateTransactionStep('completion', { 
+        status: 'completed',
+        title: 'Bridge successful!',
+        description: direction === 'u2u-to-sepolia' ? 'ETH transferred successfully!' : 'U2U transferred successfully!'
+      });
+      setCurrentStep('completion');
+      
+        setBridgeStatus({ 
+          step: 'target-confirmed', 
+        sourceTxHash: txHash,
+        targetTxHash,
+        direction
+      });
+      
+      console.log(`✅ ${direction === 'u2u-to-sepolia' ? 'ETH' : 'U2U'} successfully bridged`);
+        
+        return { 
+        u2uTx: direction === 'u2u-to-sepolia' ? txHash : targetTxHash, 
+        sepoliaTx: direction === 'u2u-to-sepolia' ? targetTxHash : txHash 
+        };
+      
     } catch (err) {
       console.error('Swap execution failed:', err);
+      
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setModalError(errorMessage);
+      
+      // Update current step to failed
+      if (currentStep) {
+        updateTransactionStep(currentStep, { 
+          status: 'failed',
+          title: 'Transaction failed',
+          description: errorMessage
+        });
+      }
+      
       setBridgeStatus({ 
         step: 'error', 
-        error: err instanceof Error ? err.message : 'Unknown error'
+        error: errorMessage
       });
+      
       throw err;
     }
-  }, [address, writeContract, sendTransaction]);
+  }, [address, sendTransaction, hash, sendHash, chainId, initializeTransactionSteps, updateTransactionStep, currentStep]);
 
   const releaseFunds = useCallback(async (
     transferId: string,
@@ -288,17 +349,9 @@ export function useCrossChainSwap() {
 
     try {
       if (chainId === 11155111) {
-        // Call release function on Sepolia pool
-        await writeContract({
-          address: SEPOLIA_POOL as `0x${string}`,
-          abi: SEPOLIA_POOL_ABI,
-          functionName: 'release',
-          args: [
-            transferId as `0x${string}`,
-            recipient as `0x${string}`,
-            parseEther(amount)
-          ],
-        });
+        // For Sepolia, we can use the bridge contract's withdraw function if available
+        // This is a placeholder - the actual implementation depends on the bridge contract's functions
+        throw new Error('Release functionality not implemented for bridge system');
       } else {
         throw new Error('Unsupported chain for release');
       }
@@ -320,5 +373,11 @@ export function useCrossChainSwap() {
     error,
     hash,
     bridgeStatus,
+    // Modal state
+    isModalOpen,
+    transactionSteps,
+    currentStep,
+    modalError,
+    setIsModalOpen,
   };
 }

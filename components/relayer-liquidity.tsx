@@ -2,7 +2,7 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useRelayerStatus } from "@/hooks/useRelayerStatus"
-import { RefreshCw, TrendingUp, DollarSign, Zap } from "lucide-react"
+import { RefreshCw, DollarSign, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface RelayerLiquidityProps {
@@ -12,16 +12,12 @@ interface RelayerLiquidityProps {
 export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
   const { relayerStatus, isLoading, error, refetch } = useRelayerStatus()
 
-  if (isLoading) {
-    return (
-      <Card className={cn("p-4 border border-white/10 bg-card/50 backdrop-blur", className)}>
-        <div className="flex items-center justify-center space-x-2">
-          <RefreshCw className="h-4 w-4 animate-spin" />
-          <span className="text-sm text-muted-foreground">Loading liquidity...</span>
-        </div>
-      </Card>
-    )
-  }
+  // Loading shimmer component for values
+  const LoadingShimmer = ({ className }: { className?: string }) => (
+    <div className={cn("animate-pulse bg-secondary/30 rounded", className)}>
+      <div className="h-4 bg-transparent"></div>
+    </div>
+  )
 
   if (error || !relayerStatus) {
     return (
@@ -63,9 +59,10 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
           variant="ghost"
           size="sm"
           onClick={refetch}
-          className="h-6 w-6 p-0 hover:bg-secondary/20"
+          disabled={isLoading}
+          className="h-6 w-6 p-0 hover:bg-secondary/20 disabled:opacity-50"
         >
-          <RefreshCw className="h-3 w-3" />
+          <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
         </Button>
       </div>
 
@@ -77,7 +74,11 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
             <span className="text-sm font-medium">Total Liquidity</span>
           </div>
           <div className="text-right">
-            <div className="text-sm font-semibold">${totalLiquidityUSD.toFixed(2)}</div>
+            {isLoading ? (
+              <LoadingShimmer className="w-16 h-4 mb-1" />
+            ) : (
+              <div className="text-sm font-semibold">${totalLiquidityUSD.toFixed(2)}</div>
+            )}
             <div className="text-xs text-muted-foreground">USD Value</div>
           </div>
         </div>
@@ -89,12 +90,20 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
             <span className="text-sm font-medium">U2U Solaris</span>
           </div>
           <div className="text-right">
-            <div className="text-sm font-semibold">
-              {relayerStatus.chains.u2u.balance.toFixed(4)} {relayerStatus.chains.u2u.symbol}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              ${relayerStatus.chains.u2u.balanceUSD.toFixed(2)}
-            </div>
+            {isLoading ? (
+              <LoadingShimmer className="w-20 h-4 mb-1" />
+            ) : (
+              <div className="text-sm font-semibold">
+                {relayerStatus.chains.u2u.balance.toFixed(4)} {relayerStatus.chains.u2u.symbol}
+              </div>
+            )}
+            {isLoading ? (
+              <LoadingShimmer className="w-12 h-3" />
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                ${relayerStatus.chains.u2u.balanceUSD.toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -105,12 +114,20 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
             <span className="text-sm font-medium">Sepolia</span>
           </div>
           <div className="text-right">
-            <div className="text-sm font-semibold">
-              {relayerStatus.chains.sepolia.balance.toFixed(4)} {relayerStatus.chains.sepolia.symbol}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              ${relayerStatus.chains.sepolia.balanceUSD.toFixed(2)}
-            </div>
+            {isLoading ? (
+              <LoadingShimmer className="w-20 h-4 mb-1" />
+            ) : (
+              <div className="text-sm font-semibold">
+                {relayerStatus.chains.sepolia.balance.toFixed(4)} {relayerStatus.chains.sepolia.symbol}
+              </div>
+            )}
+            {isLoading ? (
+              <LoadingShimmer className="w-12 h-3" />
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                ${relayerStatus.chains.sepolia.balanceUSD.toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
 

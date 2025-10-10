@@ -6,16 +6,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { ChevronDown, ArrowDown, RefreshCw, ExternalLink, X } from "lucide-react"
 import { useState, useEffect } from "react"
-import { useAccount, useChainId, useBalance, useReadContract } from "wagmi"
+import { useAccount, useBalance, useReadContract } from "wagmi"
 import { useCrossChainSwap } from "@/hooks/useCrossChainSwap"
 import { useRelayerStatus } from "@/hooks/useRelayerStatus"
 import { getChainNativeToken, getChainName } from "@/lib/priceApi"
 import { formatEther } from "viem"
-import { U2U_SEPOLIA_ADDRESS, WRBTC_ABI } from "@/lib/contracts"
+import { WETH_U2U_ADDRESS } from "@/lib/contracts"
+import { TransactionModal } from "@/components/ui/transaction-modal"
 
 export function SwapCard({ className }: { className?: string }) {
   const { address, chainId } = useAccount()
-  const { getQuote, executeSwap, quote, isLoadingQuote, isPending, isConfirming, isSuccess, error, bridgeStatus } = useCrossChainSwap()
+  const { 
+    getQuote, 
+    executeSwap, 
+    quote, 
+    isLoadingQuote, 
+    isPending, 
+    isConfirming, 
+    isSuccess, 
+    bridgeStatus,
+    isModalOpen,
+    transactionSteps,
+    currentStep,
+    modalError,
+    setIsModalOpen
+  } = useCrossChainSwap()
   const { relayerStatus } = useRelayerStatus()
   
   const [sellToken, setSellToken] = useState("ETH")
@@ -24,20 +39,25 @@ export function SwapCard({ className }: { className?: string }) {
   const [buyAmount, setBuyAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [swapError, setSwapError] = useState<string | null>(null)
-  const [swapResult, setSwapResult] = useState<{u2uTx: string, sepoliaTx: string} | null>(null)
-  const [showTxPopup, setShowTxPopup] = useState(false)
+  const [swapResult, setSwapResult] = useState<{u2uTx: string | undefined, sepoliaTx: string | undefined} | null>(null)
 
   // Fetch balances
   const { data: nativeBalance } = useBalance({
     address,
   })
 
-  const { data: wRBTCBalance } = useReadContract({
-    address: U2U_SEPOLIA_ADDRESS,
-    abi: WRBTC_ABI,
+  const { data: wETHBalance } = useReadContract({
+    address: WETH_U2U_ADDRESS,
+    abi: [{
+      inputs: [{ name: 'account', type: 'address' }],
+      name: 'balanceOf',
+      outputs: [{ name: '', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function'
+    }],
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: 11155111, // Sepolia
+    chainId: 39, // U2U
   })
 
   // Get available balance for the selected sell token
@@ -46,8 +66,8 @@ export function SwapCard({ className }: { className?: string }) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0"
     } else if (sellToken === "U2U" && chainId === 39) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0"
-    } else if (sellToken === "wRBTC" && chainId === 11155111) {
-      return wRBTCBalance ? formatEther(wRBTCBalance as bigint) : "0"
+    } else if (sellToken === "WETH" && chainId === 39) {
+      return wETHBalance ? formatEther(wETHBalance as bigint) : "0"
     }
     return "0"
   }
@@ -120,19 +140,18 @@ export function SwapCard({ className }: { className?: string }) {
     setSellAmount(balance)
   }
 
-  // Show transaction popup for 5 seconds
+  // Handle swap result
   useEffect(() => {
-    if (swapResult) {
-      setShowTxPopup(true)
-      const timer = setTimeout(() => {
-        setShowTxPopup(false)
-      }, 5000)
-      return () => clearTimeout(timer)
+    if (swapResult && bridgeStatus.step === 'target-confirmed') {
+      // Swap completed successfully
+      console.log('Swap completed:', swapResult)
     }
-  }, [swapResult])
+  }, [swapResult, bridgeStatus.step])
 
   // Update token options based on current chain
   useEffect(() => {
+    if (!chainId) return;
+    
     const nativeToken = getChainNativeToken(chainId)
     if (chainId === 39) { // U2U Solaris
       setSellToken(nativeToken)
@@ -145,7 +164,7 @@ export function SwapCard({ className }: { className?: string }) {
 
   // Fetch quote when amount or tokens change
   useEffect(() => {
-    if (sellToken && buyToken && sellAmount && parseFloat(sellAmount) > 0) {
+    if (sellToken && buyToken && sellAmount && parseFloat(sellAmount) > 0 && chainId) {
       const fromChainId = chainId
       const toChainId = chainId === 39 ? 11155111 : 39 // Opposite chain
       
@@ -174,7 +193,7 @@ export function SwapCard({ className }: { className?: string }) {
       return
     }
 
-    if (sellToken && buyToken && sellAmount) {
+    if (sellToken && buyToken && sellAmount && chainId) {
       setIsLoading(true)
       setSwapError(null)
       setSwapResult(null)
@@ -194,11 +213,14 @@ export function SwapCard({ className }: { className?: string }) {
         
         console.log('Swap result:', result);
         
-        if (result) {
-          setSwapResult(result)
+        if (result && result.u2uTx && result.sepoliaTx) {
+          setSwapResult({
+            u2uTx: result.u2uTx,
+            sepoliaTx: result.sepoliaTx
+          })
         }
-      } catch (err: any) {
-        setSwapError(err.message || "Swap failed")
+      } catch (err) {
+        setSwapError(err instanceof Error ? err.message : "Swap failed")
       } finally {
         setIsLoading(false)
       }
@@ -216,67 +238,20 @@ export function SwapCard({ className }: { className?: string }) {
 
   return (
     <>
-      {/* Transaction Explorer Popup */}
-      {showTxPopup && swapResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative bg-card border border-white/20 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowTxPopup(false)}
-              className="absolute top-4 right-4 p-1 h-auto hover:bg-secondary/20"
-            >
-              <X className="size-4" />
-            </Button>
-            
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-green-400 mb-2">Swap Successful!</h3>
-              <p className="text-sm text-muted-foreground">Your cross-chain swap has been completed</p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm font-medium">U2U Transaction</span>
-                </div>
-                <a
-                  href={`https://u2uscan.xyz/tx/${swapResult.u2uTx}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                >
-                  View <ExternalLink className="size-3" />
-                </a>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Sepolia Transaction</span>
-                </div>
-                <a
-                  href={`https://sepolia.etherscan.io/tx/${swapResult.sepoliaTx}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                >
-                  View <ExternalLink className="size-3" />
-                </a>
-              </div>
-            </div>
-
-            <div className="mt-4 text-xs text-muted-foreground text-center">
-              This popup will close automatically in a few seconds
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        steps={transactionSteps}
+        currentStep={currentStep}
+        error={modalError || undefined}
+        onRetry={() => {
+          // Retry logic can be implemented here if needed
+        }}
+        onCancel={() => {
+          setIsModalOpen(false)
+        }}
+      />
 
       <Card
         className={cn(
@@ -289,7 +264,7 @@ export function SwapCard({ className }: { className?: string }) {
             <div>
               <h2 className="text-xl font-semibold">Cross-Chain Swap</h2>
               <p className="text-sm text-muted-foreground">
-                {getChainName(chainId)} → {getChainName(chainId === 39 ? 11155111 : 39)}
+                {chainId ? `${getChainName(chainId)} → ${getChainName(chainId === 39 ? 11155111 : 39)}` : 'Select Network'}
               </p>
             </div>
             <Button
@@ -416,130 +391,31 @@ export function SwapCard({ className }: { className?: string }) {
             </div>
           )}
 
-          {isSuccess && (
-            <div className="mt-4 p-3 rounded-lg bg-green-500/20 text-green-400 text-sm">
-              Swap completed successfully! Check your wallet for the transaction.
-            </div>
-          )}
-
-          {/* Bridge Status Display */}
-          {bridgeStatus.step !== 'idle' && (
-            <div className="mt-4 p-3 rounded-lg bg-blue-500/20 text-blue-400 text-sm">
-              <div className="font-semibold mb-2">Bridge Status</div>
-              <div className="space-y-2">
-                {bridgeStatus.step === 'source-pending' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <span>
-                      {bridgeStatus.direction === 'u2u-to-sepolia' 
-                        ? '⏳ Waiting for U2U confirmation...' 
-                        : '⏳ Waiting for ETH confirmation...'}
-                    </span>
-                  </div>
-                )}
-                {bridgeStatus.step === 'source-confirmed' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>
-                      {bridgeStatus.direction === 'u2u-to-sepolia' 
-                        ? '✅ U2U transaction confirmed' 
-                        : '✅ ETH transaction confirmed'}
-                    </span>
-                    {bridgeStatus.sourceTxHash && (
-                      <a 
-                        href={bridgeStatus.direction === 'u2u-to-sepolia' 
-                          ? `https://u2uscan.xyz/tx/${bridgeStatus.sourceTxHash}`
-                          : `https://sepolia.etherscan.io/tx/${bridgeStatus.sourceTxHash}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="underline text-xs"
-                      >
-                        View TX
-                      </a>
-                    )}
-                  </div>
-                )}
-                {bridgeStatus.step === 'target-pending' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <span>
-                      {bridgeStatus.direction === 'u2u-to-sepolia' 
-                        ? '⏳ Relayer sending ETH...' 
-                        : '⏳ Relayer sending U2U...'}
-                    </span>
-                  </div>
-                )}
-                {bridgeStatus.step === 'target-confirmed' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>
-                      {bridgeStatus.direction === 'u2u-to-sepolia' 
-                        ? '✅ ETH successfully bridged' 
-                        : '✅ U2U successfully bridged'}
-                    </span>
-                    {bridgeStatus.targetTxHash && (
-                      <a 
-                        href={bridgeStatus.direction === 'u2u-to-sepolia' 
-                          ? `https://sepolia.etherscan.io/tx/${bridgeStatus.targetTxHash}`
-                          : `https://u2uscan.xyz/tx/${bridgeStatus.targetTxHash}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="underline text-xs"
-                      >
-                        View TX
-                      </a>
-                    )}
-                  </div>
-                )}
-                {bridgeStatus.step === 'error' && (
-                  <div className="flex items-center gap-2 text-red-400">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <span>❌ {bridgeStatus.error}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {swapResult && (
-            <div className="mt-4 p-3 rounded-lg bg-blue-500/20 text-blue-400 text-sm">
-              <div className="font-semibold mb-2">Cross-Chain Swap Complete!</div>
-              <div className="space-y-1 text-xs">
-                {bridgeStatus.direction === 'u2u-to-sepolia' ? (
-                  <>
-                    <div>U2U TX: <a href={`https://u2uscan.xyz/tx/${swapResult.u2uTx}`} target="_blank" rel="noopener noreferrer" className="underline">{swapResult.u2uTx ? swapResult.u2uTx.slice(0, 10) + '...' : 'Pending'}</a></div>
-                    <div>Sepolia TX: <a href={`https://sepolia.etherscan.io/tx/${swapResult.sepoliaTx}`} target="_blank" rel="noopener noreferrer" className="underline">{swapResult.sepoliaTx ? swapResult.sepoliaTx.slice(0, 10) + '...' : 'Pending'}</a></div>
-                  </>
-                ) : (
-                  <>
-                    <div>Sepolia TX: <a href={`https://sepolia.etherscan.io/tx/${swapResult.u2uTx}`} target="_blank" rel="noopener noreferrer" className="underline">{swapResult.u2uTx ? swapResult.u2uTx.slice(0, 10) + '...' : 'Pending'}</a></div>
-                    <div>U2U TX: <a href={`https://u2uscan.xyz/tx/${swapResult.sepoliaTx}`} target="_blank" rel="noopener noreferrer" className="underline">{swapResult.sepoliaTx ? swapResult.sepoliaTx.slice(0, 10) + '...' : 'Pending'}</a></div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
 
           <Button
             onClick={handleSwap}
             disabled={!sellToken || !buyToken || !sellAmount || isLoading || isLoadingQuote || isPending || isConfirming || !address || !liquidityCheck.sufficient || !chainValidation.isValid}
             className="mt-6 w-full h-12 text-lg font-medium bg-red-500 hover:bg-red-600 text-white rounded-4xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-      {isLoadingQuote ? "Getting quote..." : 
-       isPending ? "Confirming..." : 
-       isConfirming ? "Processing..." : 
-       isLoading ? "Calculating..." : 
-       !address ? "Connect Wallet" : 
-       !chainValidation.isValid ? "Switch Network" :
-       !liquidityCheck.sufficient ? "Insufficient Liquidity" :
-       bridgeStatus.step === 'source-pending' ? 
-         (bridgeStatus.direction === 'u2u-to-sepolia' ? "Waiting for U2U..." : "Waiting for ETH...") :
-       bridgeStatus.step === 'source-confirmed' ? 
-         (bridgeStatus.direction === 'u2u-to-sepolia' ? "U2U Confirmed" : "ETH Confirmed") :
-       bridgeStatus.step === 'target-pending' ? 
-         (bridgeStatus.direction === 'u2u-to-sepolia' ? "Sending ETH..." : "Sending U2U...") :
-       bridgeStatus.step === 'target-confirmed' ? "Bridge Complete!" :
-       "Cross-Chain Swap"}
+            {isLoadingQuote ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Getting Quote...
+              </div>
+            ) : !address ? (
+              "Connect Wallet"
+            ) : !chainValidation.isValid ? (
+              "Switch Network"
+            ) : !liquidityCheck.sufficient ? (
+              "Insufficient Liquidity"
+            ) : isLoading || isPending || isConfirming ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Processing...
+              </div>
+            ) : (
+              "Cross-Chain Swap"
+            )}
           </Button>
         </div>
       </Card>
