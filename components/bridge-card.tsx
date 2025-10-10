@@ -4,20 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { ArrowDown, RefreshCw, Zap, ExternalLink } from "lucide-react"
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { useBridge } from "@/hooks/useBridge"
 import { useAccount, useConnect, useDisconnect } from "wagmi"
-import { ethers } from "ethers"
 import { AddU2UToMetaMask } from "./add-u2u-metamask"
-
-// Minting configuration
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "https://1rpc.io/sepolia"
-const RELAYER_PRIVATE_KEY =
-  process.env.RELAYER_PRIVATE_KEY || "c8316c9978a2218ed87caa2a5d4e984f14944fecc242ded779a6a5f337eefd2b"
-const WRBTC_SEPOLIA_ADDRESS = "0x25d6d8758FaB9Ae4310b2b826535486e85990788"
-
-// Minimal ABI for mint function
-const WRBTC_ABI = ["function mint(address to, uint256 amount) external"]
+import { AddWETHToMetaMask } from "./add-weth-metamask"
 
 export function BridgeCard({ className }: { className?: string }) {
   const { address, isConnected } = useAccount()
@@ -28,6 +19,7 @@ export function BridgeCard({ className }: { className?: string }) {
     isLoading,
     isConfirmed,
     txHash,
+    mintTxHash,
     error,
     isOnU2U,
     isOnSepolia,
@@ -42,58 +34,10 @@ export function BridgeCard({ className }: { className?: string }) {
   const [fromAmount, setFromAmount] = useState("")
   const [toAmount, setToAmount] = useState("")
 
-  // Automatic minting states (hidden from user)
-  const [autoMintTxHash, setAutoMintTxHash] = useState<string | null>(null)
-  const [autoMintLoading, setAutoMintLoading] = useState(false)
-  const [autoMintError, setAutoMintError] = useState<string | null>(null)
-
-  // Track when bridge is confirmed to trigger auto-minting
-  const [bridgeAmount, setBridgeAmount] = useState<string>("")
-  const [shouldAutoMint, setShouldAutoMint] = useState(false)
-
-  // Automatic minting functionality (called after successful bridge)
-  const handleAutoMint = useCallback(async (recipientAddress: string, mintAmount: string) => {
-    setAutoMintLoading(true)
-    setAutoMintError(null)
-    setAutoMintTxHash(null)
-
-    try {
-      const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL)
-      const wallet = new ethers.Wallet(RELAYER_PRIVATE_KEY, provider)
-      const contract = new ethers.Contract(WRBTC_SEPOLIA_ADDRESS, WRBTC_ABI, wallet)
-
-      // Convert amount to wei (assuming wRBTC has 18 decimals)
-      const amountWei = ethers.parseEther(mintAmount)
-
-      const tx = await contract.mint(recipientAddress, amountWei)
-      console.log("Auto-mint transaction sent:", tx.hash)
-      setAutoMintTxHash(tx.hash)
-
-      await tx.wait()
-      console.log("Auto-mint transaction confirmed")
-    } catch (err: unknown) {
-      console.error("Auto-mint failed", err)
-      setAutoMintError(err instanceof Error ? err.message : "Auto-mint failed")
-    } finally {
-      setAutoMintLoading(false)
-    }
-  }, [])
-
-  // Effect to trigger auto-minting when bridge is confirmed
-  useEffect(() => {
-    if (shouldAutoMint && isConfirmed && address && bridgeAmount) {
-      console.log("Bridge confirmed, starting automatic minting...")
-      handleAutoMint(address, bridgeAmount)
-      setShouldAutoMint(false) // Reset flag
-    }
-  }, [isConfirmed, shouldAutoMint, address, bridgeAmount, handleAutoMint])
-
   const handleBridge = async () => {
     if (!fromAmount || !address) return
 
     if (isOnU2U) {
-      setBridgeAmount(fromAmount)
-      setShouldAutoMint(true)
       await bridgeFromU2U(fromAmount)
     } else if (isOnSepolia) {
       await bridgeFromSepolia(fromAmount)
@@ -224,7 +168,7 @@ export function BridgeCard({ className }: { className?: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <div className="w-[120px] px-3 py-2 bg-secondary/30 border border-secondary rounded-lg text-sm text-center">
-              {isOnU2U ? "ETH" : "U2U"}
+              {isOnU2U ? "ETH" : "WETH"}
             </div>
             <div className="w-[120px] px-3 py-2 bg-secondary/30 border border-secondary rounded-lg text-sm text-center">
               {targetNetwork}
@@ -240,26 +184,31 @@ export function BridgeCard({ className }: { className?: string }) {
             </div>
             <div className="flex justify-between mt-1">
               <span className="text-muted-foreground">Estimated Time</span>
-              <span>{isOnU2U ? "1-2 minutes" : "Not Available"}</span>
+              <span>{isOnU2U ? "1-2 minutes" : "2-5 minutes"}</span>
             </div>
           </div>
         )}
 
         {isOnSepolia && (
-          <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-            <p className="text-foreground">
-              <strong>Note:</strong> Bridge from Sepolia to U2U requires relayer processing. Currently, only
-              U2U → Sepolia bridging is available.
-            </p>
+          <div className="mt-4 space-y-3">
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+              <p className="text-foreground">
+                <strong>Note:</strong> Bridge from Sepolia to U2U requires relayer processing. Your ETH will be sent to the bridge contract, and WETH will be minted on U2U Solaris.
+              </p>
+            </div>
+            <AddWETHToMetaMask />
           </div>
         )}
 
         {isOnU2U && (
-          <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
-            <p className="text-foreground">
-              <strong>✨ Relayer Processing:</strong> When you bridge U2U, our relayer will process the transaction and deliver equivalent ETH tokens on
-              Sepolia to the same address within 1-2 minutes.
-            </p>
+          <div className="mt-4 space-y-3">
+            <div className="p-3 rounded-lg bg-secondary/10 border border-border text-sm">
+              <p className="text-foreground">
+                <strong>✨ Relayer Processing:</strong> When you bridge U2U, our relayer will process the transaction and deliver equivalent ETH tokens on
+                Sepolia to the same address within 1-2 minutes.
+              </p>
+            </div>
+            <AddWETHToMetaMask />
           </div>
         )}
 
@@ -269,8 +218,7 @@ export function BridgeCard({ className }: { className?: string }) {
             !fromAmount ||
             isLoading ||
             Number.parseFloat(fromAmount) <= 0 ||
-            Number.parseFloat(fromAmount) > Number.parseFloat(availableBalance) ||
-            isOnSepolia
+            Number.parseFloat(fromAmount) > Number.parseFloat(availableBalance)
           }
           className="mt-6 w-full h-12 text-lg font-medium bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -279,59 +227,48 @@ export function BridgeCard({ className }: { className?: string }) {
               <Zap className="size-4 animate-pulse" />
               Bridging...
             </div>
-          ) : isOnU2U ? (
-            `Bridge ${fromAmount || "0"} ${tokenSymbol} to ${targetNetwork}`
           ) : (
-            "Bridge Not Available (Relayer Only)"
+            `Bridge ${fromAmount || "0"} ${tokenSymbol} to ${targetNetwork}`
           )}
         </Button>
 
         {error && (
           <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
             <p className="text-destructive">
-              <strong>Error:</strong> {error.message}
+              <strong>Error:</strong> {typeof error === 'string' ? error : error?.message || 'Unknown error'}
             </p>
           </div>
         )}
 
-        {isConfirmed && !autoMintLoading && !autoMintError && (
+        {isConfirmed && !mintTxHash && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>Bridge Successful!</strong> U2U bridged successfully. Relayer processing will start shortly...
+              <strong>✅ Transaction Confirmed!</strong> {isOnU2U ? "U2U bridged successfully. Relayer processing will start shortly..." : "ETH transaction confirmed on Sepolia. WETH minting will start shortly..."}
             </p>
           </div>
         )}
 
-        {/* Relayer Processing Status */}
-        {autoMintLoading && (
+        {isLoading && !isConfirmed && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>🔄 Relayer Processing...</strong> Processing bridge transaction on Sepolia...
+              <strong>🔄 Processing...</strong> {isOnU2U ? "Bridging U2U to Sepolia..." : "Sending ETH to Sepolia bridge contract..."}
             </p>
           </div>
         )}
 
-        {autoMintError && (
-          <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
-            <p className="text-destructive">
-              <strong>Relayer Error:</strong> {autoMintError}
-            </p>
-          </div>
-        )}
-
-        {autoMintTxHash && (
+        {mintTxHash && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>✅ Bridge Complete!</strong> ETH tokens have been delivered via relayer.
+              <strong>✅ Bridge Complete!</strong> {isOnU2U ? "ETH tokens have been delivered via relayer." : "WETH tokens have been minted on U2U Solaris."}
             </p>
             <div className="mt-2">
               <a
-                href={`https://sepolia.etherscan.io/tx/${autoMintTxHash}`}
+                href={isOnU2U ? `https://sepolia.etherscan.io/tx/${mintTxHash}` : `https://u2uscan.xyz/tx/${mintTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground/80 hover:text-foreground text-xs underline flex items-center gap-1"
               >
-                View Relayer Transaction <ExternalLink className="size-3" />
+                View {isOnU2U ? "Relayer" : "WETH Mint"} Transaction <ExternalLink className="size-3" />
               </a>
             </div>
           </div>
@@ -345,7 +282,7 @@ export function BridgeCard({ className }: { className?: string }) {
             <code className="break-all text-xs">{txHash}</code>
             <div className="mt-2">
               <a
-                href={`https://u2uscan.xyz/tx/${txHash}`}
+                href={isOnU2U ? `https://u2uscan.xyz/tx/${txHash}` : `https://sepolia.etherscan.io/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground/80 hover:text-foreground text-xs underline flex items-center gap-1"

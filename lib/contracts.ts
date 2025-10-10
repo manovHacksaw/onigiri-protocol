@@ -16,7 +16,7 @@ import {
   RIFF_TOKEN_ROOTSTOCK
 } from './addresses'
 import WRBTC_ABI from './abiFiles/WRBTC.json'
-import SEPOLIA_BRIDGE_ABI from './abiFiles/SepoliaBridge.json'
+import SEPOLIA_BRIDGE_ABI from './abiFiles/SepoliaBridgeNew.json'
 import ROOTSTOCK_BRIDGE_ABI from './abiFiles/RootStackBridge.json'
 import SEPOLIA_POOL_ABI from './abiFiles/SepoliaPool.json'
 import ROOTSTACK_POOL_ABI from './abiFiles/RootStackPool.json'

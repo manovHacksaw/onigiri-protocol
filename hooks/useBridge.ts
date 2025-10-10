@@ -1,19 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useAccount,
   useBalance,
-  useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseEther, formatEther } from "viem";
 import {
-  U2U_SEPOLIA_ADDRESS,
   U2U_BRIDGE_ADDRESS,
   SEPOLIA_BRIDGE_ADDRESS,
-  WRBTC_ABI,
   ROOTSTOCK_BRIDGE_ABI,
   SEPOLIA_BRIDGE_ABI,
 } from "@/lib/contracts";
@@ -24,16 +21,16 @@ export function useBridge() {
   const [isLoading, setIsLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
+  const [relayerError, setRelayerError] = useState<string | null>(null);
+  const [pendingBridgeAmount, setPendingBridgeAmount] = useState<string | null>(null);
 
   const { data: nativeBalance } = useBalance({
     address,
   });
 
-  const { data: wRBTCBalance } = useReadContract({
-    address: U2U_SEPOLIA_ADDRESS,
-    abi: WRBTC_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
+  // For Sepolia, we need the native ETH balance, not a token balance
+  const { data: sepoliaBalance } = useBalance({
+    address,
     chainId: sepolia.id,
   });
 
@@ -43,6 +40,54 @@ export function useBridge() {
     useWaitForTransactionReceipt({
       hash,
     });
+
+  // Effect to trigger relayer call after Sepolia transaction is confirmed
+  useEffect(() => {
+    const triggerRelayerMinting = async () => {
+      if (isConfirmed && pendingBridgeAmount && address && hash) {
+        console.log("Sepolia transaction confirmed, triggering WETH minting...");
+        
+        try {
+          // Generate a transferId based on the confirmed transaction
+          const transferId = `0x${Buffer.from(`${address}-${pendingBridgeAmount}-${Date.now()}`).toString('hex').padStart(64, '0')}`;
+
+          // Call relayer to mint WETH on U2U
+          const response = await fetch("/api/relayer", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              recipient: address,
+              amount: pendingBridgeAmount,
+              action: "bridge-eth-to-weth",
+              transferId: transferId,
+              sepoliaTxHash: hash, // Include the confirmed Sepolia transaction hash
+            }),
+          });
+
+          const bridgeResult = await response.json();
+
+          if (bridgeResult.success) {
+            console.log("WETH bridge processed successfully:", bridgeResult.txHash);
+            setMintTxHash(bridgeResult.txHash);
+            setRelayerError(null);
+          } else {
+            console.error("Failed to process WETH bridge:", bridgeResult.error);
+            setRelayerError(bridgeResult.error || "WETH bridge processing failed");
+          }
+        } catch (err) {
+          console.error("Relayer call failed:", err);
+          setRelayerError("Failed to call relayer for WETH minting");
+        } finally {
+          // Clear the pending bridge amount
+          setPendingBridgeAmount(null);
+        }
+      }
+    };
+
+    triggerRelayerMinting();
+  }, [isConfirmed, pendingBridgeAmount, address, hash]);
 
   const isOnU2U = chainId === u2uSolaris.id;
   const isOnSepolia = chainId === sepolia.id;
@@ -87,8 +132,10 @@ export function useBridge() {
       if (bridgeResult.success) {
         console.log("Bridge processed successfully:", bridgeResult.txHash);
         setMintTxHash(bridgeResult.txHash);
+        setRelayerError(null);
       } else {
         console.error("Failed to process bridge:", bridgeResult.error);
+        setRelayerError(bridgeResult.error || "Bridge processing failed");
       }
     } catch (err) {
       console.error("Bridge transaction failed:", err);
@@ -103,46 +150,25 @@ export function useBridge() {
     setIsLoading(true);
     setTxHash(null);
     setMintTxHash(null);
+    setRelayerError(null);
+    setPendingBridgeAmount(amount); // Store the amount for later relayer call
 
     try {
-      // Send ETH to Sepolia bridge contract
+      // Send ETH to Sepolia bridge contract using deposit function
       writeContract({
         address: SEPOLIA_BRIDGE_ADDRESS,
         abi: SEPOLIA_BRIDGE_ABI,
-        functionName: "bridge",
-        args: [BigInt(39), address], // destinationChainId = 39 (U2U), recipient = user address
+        functionName: "deposit",
+        args: [], // deposit function takes no arguments, ETH is sent as msg.value
         chainId: sepolia.id,
         value: parseEther(amount),
       });
 
-      // Wait a moment for the transaction to be mined
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Call relayer to mint WETH on U2U
-      const response = await fetch("/api/relayer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          recipient: address,
-          amount: amount,
-          action: "bridge-eth-to-weth",
-          transferId: hash,
-        }),
-      });
-
-      const bridgeResult = await response.json();
-
-      if (bridgeResult.success) {
-        console.log("WETH bridge processed successfully:", bridgeResult.txHash);
-        setMintTxHash(bridgeResult.txHash);
-      } else {
-        console.error("Failed to process WETH bridge:", bridgeResult.error);
-      }
+      // The useEffect will handle the relayer call after transaction confirmation
+      console.log("ETH sent to Sepolia bridge, waiting for confirmation...");
     } catch (err) {
       console.error("WETH bridge transaction failed:", err);
-    } finally {
+      setPendingBridgeAmount(null); // Clear pending amount on error
       setIsLoading(false);
     }
   };
@@ -151,7 +177,7 @@ export function useBridge() {
     if (isOnU2U) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0";
     } else if (isOnSepolia) {
-      return wRBTCBalance ? formatEther(wRBTCBalance as bigint) : "0";
+      return sepoliaBalance ? formatEther(sepoliaBalance.value) : "0";
     }
     return "0";
   };
@@ -181,7 +207,7 @@ export function useBridge() {
     isConfirmed,
     txHash: hash,
     mintTxHash,
-    error,
+    error: error || relayerError,
     isOnU2U,
     isOnSepolia,
     availableBalance: getAvailableBalance(),

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createWalletClient, createPublicClient, http, parseEther, keccak256, encodePacked } from "viem";
+import { createWalletClient, createPublicClient, http, parseEther, formatEther, keccak256, encodePacked } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { u2uSolaris } from "@/lib/config";
 import { POCKET_PROTOCOL_SEPOLIA, POCKET_PROTOCOL_ABI, SEPOLIA_POOL, SEPOLIA_POOL_ABI } from "@/lib/contracts";
+import U2U_BRIDGE_ABI from "@/artifacts/contracts/U2UBridge.sol/U2UBridge.json";
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL!;
 const U2U_RPC_URL = process.env.U2U_RPC_URL || "https://rpc-mainnet.u2u.xyz";
@@ -72,8 +73,8 @@ async function checkLiquidity(account: any, u2uAmount: bigint, ethAmount: bigint
 
 export async function POST(request: NextRequest) {
   try {
-    const { recipient, amount, transferId, action, u2uTxHash } = await request.json();
-    console.log('Relayer API called with:', { recipient, amount, action, u2uTxHash, transferId });
+    const { recipient, amount, transferId, action, u2uTxHash, sepoliaTxHash } = await request.json();
+    console.log('Relayer API called with:', { recipient, amount, action, u2uTxHash, sepoliaTxHash, transferId });
 
     if (!recipient || !amount) {
       return NextResponse.json(
@@ -390,13 +391,35 @@ export async function POST(request: NextRequest) {
       // Handle bridge: ETH (Sepolia) → WETH (U2U)
       console.log(`✅ Processing bridge: ${amount} ETH to WETH for ${recipient}, transferId: ${transferId}`);
       
-      // Ensure recipient is not the relayer's own address
-      if (recipient.toLowerCase() === account.address.toLowerCase()) {
-        return NextResponse.json(
-          { success: false, error: "Cannot send to relayer's own address" },
-          { status: 400 }
-        );
+      // Note: Allow relayer to bridge for itself (valid use case)
+      
+      // Validate Sepolia transaction if provided
+      if (sepoliaTxHash) {
+        try {
+          const sepoliaReceipt = await sepoliaPublicClient.getTransactionReceipt({ hash: sepoliaTxHash as `0x${string}` });
+          if (!sepoliaReceipt || sepoliaReceipt.status !== 'success') {
+            return NextResponse.json(
+              { success: false, error: "Sepolia transaction not confirmed or failed" },
+              { status: 400 }
+            );
+          }
+          console.log(`✅ Sepolia transaction confirmed: ${sepoliaTxHash}`);
+        } catch (error) {
+          return NextResponse.json(
+            { success: false, error: "Failed to validate Sepolia transaction" },
+            { status: 400 }
+          );
+        }
       }
+      
+      // Generate a transferId if not provided
+      const finalTransferId = transferId || `0x${Buffer.from(`${recipient}-${amount}-${Date.now()}`).toString('hex').padStart(64, '0')}`;
+      
+      // Ensure transferId is exactly 32 bytes (64 hex characters + 0x prefix)
+      const cleanTransferId = finalTransferId.startsWith('0x') ? finalTransferId.slice(2) : finalTransferId;
+      const paddedTransferId = `0x${cleanTransferId.padStart(64, '0').slice(0, 64)}`;
+      
+      console.log(`Using transferId: ${paddedTransferId}`);
       
       // For ETH → WETH bridge, we mint WETH on U2U
       // The amount is already in ETH, so we mint the same amount as WETH
@@ -424,27 +447,14 @@ export async function POST(request: NextRequest) {
       }
       
       // Call the U2U bridge contract to mint WETH
-      // Note: This requires the bridge contract to be deployed and configured
-      const bridgeAddress = "0x0000000000000000000000000000000000000000"; // TODO: Update with actual address
+      const bridgeAddress = "0x20c452438968C942729D70035fF2dD86481F6EaB"; // Deployed U2U Bridge address
       
       try {
         const txHash = await u2uWalletClient.writeContract({
           address: bridgeAddress as `0x${string}`,
-          abi: [
-            {
-              "inputs": [
-                {"name": "to", "type": "address"},
-                {"name": "amount", "type": "uint256"},
-                {"name": "transferId", "type": "bytes32"}
-              ],
-              "name": "mintWETH",
-              "outputs": [],
-              "stateMutability": "nonpayable",
-              "type": "function"
-            }
-          ],
+          abi: U2U_BRIDGE_ABI.abi,
           functionName: "mintWETH",
-          args: [recipient as `0x${string}`, wethAmount, transferId as `0x${string}`],
+          args: [recipient as `0x${string}`, wethAmount, paddedTransferId as `0x${string}`],
         });
 
         const receipt = await u2uPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
