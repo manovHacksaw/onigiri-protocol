@@ -23,6 +23,7 @@ export function useBridge() {
   const [mintTxHash, setMintTxHash] = useState<string | null>(null);
   const [relayerError, setRelayerError] = useState<string | null>(null);
   const [pendingBridgeAmount, setPendingBridgeAmount] = useState<string | null>(null);
+  const [relayerProcessing, setRelayerProcessing] = useState<boolean>(false);
 
   const { data: nativeBalance } = useBalance({
     address,
@@ -44,12 +45,13 @@ export function useBridge() {
   // Effect to trigger relayer call after Sepolia transaction is confirmed
   useEffect(() => {
     const triggerRelayerMinting = async () => {
-      if (isConfirmed && pendingBridgeAmount && address && hash) {
+      if (isConfirmed && pendingBridgeAmount && address && hash && !relayerProcessing) {
         console.log("Sepolia transaction confirmed, triggering WETH minting...");
+        setRelayerProcessing(true);
         
         try {
-          // Generate a transferId based on the confirmed transaction
-          const transferId = `0x${Buffer.from(`${address}-${pendingBridgeAmount}-${Date.now()}`).toString('hex').padStart(64, '0')}`;
+          // Use the actual transaction hash as transferId to ensure uniqueness
+          const transferId = hash;
 
           // Call relayer to mint WETH on U2U
           const response = await fetch("/api/relayer", {
@@ -80,14 +82,15 @@ export function useBridge() {
           console.error("Relayer call failed:", err);
           setRelayerError("Failed to call relayer for WETH minting");
         } finally {
-          // Clear the pending bridge amount
+          // Clear the pending bridge amount and reset processing flag
           setPendingBridgeAmount(null);
+          setRelayerProcessing(false);
         }
       }
     };
 
     triggerRelayerMinting();
-  }, [isConfirmed, pendingBridgeAmount, address, hash]);
+  }, [isConfirmed, pendingBridgeAmount, address, hash, relayerProcessing]);
 
   const isOnU2U = chainId === u2uSolaris.id;
   const isOnSepolia = chainId === sepolia.id;
@@ -151,6 +154,7 @@ export function useBridge() {
     setTxHash(null);
     setMintTxHash(null);
     setRelayerError(null);
+    setRelayerProcessing(false);
     setPendingBridgeAmount(amount); // Store the amount for later relayer call
 
     try {

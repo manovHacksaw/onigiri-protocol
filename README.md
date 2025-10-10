@@ -1,196 +1,187 @@
-# Pocket Protocol - Cross-Chain DeFi Platform
+# Pocket Protocol – Cross-Chain Bridge Application
 
-**A revolutionary cross-chain DeFi platform that enables seamless token swapping, bridging, and staking between Rootstock and Ethereum networks with real-time market data integration.**
+**A cross-chain bridge enabling seamless token swaps between U2U Solaris Mainnet and Sepolia Testnet, built for the VietBUIDL Hackathon on HackQuest Demo.**
 
-## 📋 Project Description
+## 🌉 Overview
 
-Pocket Protocol is a comprehensive decentralized finance platform that bridges the gap between Rootstock and Ethereum ecosystems. We've integrated Rootstock's native tRBTC with Ethereum's wRBTC through an innovative cross-chain bridge system, enabling users to swap tokens, stake assets, and access real-time market data across both networks seamlessly.
-<img width="1068" height="596" alt="image" src="https://github.com/user-attachments/assets/7687de42-f1c1-4f37-9b18-9c204f82746a" />
+Pocket Protocol is a cross-chain bridge application that enables users to swap tokens between U2U Solaris Mainnet and Sepolia Testnet. The application provides a user-friendly interface for cross-chain token transfers with real-time transaction tracking and automated relayer processing.
 
-## 🔗 Rootstock Integration
-<img width="1285" height="724" alt="image" src="https://github.com/user-attachments/assets/b5278b60-7468-4c55-b083-5719959dde93" />
+## 🔗 Supported Chains & Tokens
 
-**What we integrated Rootstock with and how:**
+### U2U Solaris Mainnet (Chain ID: 39)
+- **Native Token**: U2U
+- **Explorer**: [https://u2uscan.xyz](https://u2uscan.xyz)
+- **Bridge Contract**: [`0x20c452438968C942729D70035fF2dD86481F6EaB`](https://u2uscan.xyz/address/0x20c452438968C942729D70035fF2dD86481F6EaB)
 
-We integrated Rootstock Testnet with Ethereum Sepolia to create a unified cross-chain DeFi experience:
+### Sepolia Testnet (Chain ID: 11155111)
+- **Native Token**: ETH
+- **Explorer**: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
+- **Bridge Contract**: [`0xe564df234366234b279c9a5d547c94AA4a5C08F3`](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3)
+- **WETH Contract**: [`0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D`](https://u2uscan.xyz/address/0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D)
 
-- **Cross-Chain Bridge**: Built a sophisticated bridge system that allows users to transfer tRBTC from Rootstock Testnet to wRBTC on Ethereum Sepolia with automatic token minting
-- **Smart Contract Deployment**: Deployed contracts on both Rootstock Testnet and Ethereum Sepolia for seamless cross-chain operations
-- **Relayer System**: Implemented an automated relayer that processes bridge transactions and mints equivalent tokens on the destination chain
-- **Real-time Integration**: Connected Pyth Network price feeds to provide live market data for both networks
-- **Wallet Integration**: Seamless wallet connection supporting both Rootstock and Ethereum networks
+## 🔄 Bridge Functionality
 
-**Technical Implementation:**
-- Rootstock Bridge Contract: `0x12FA616A8c8c5B892189743eCE97B97ca8360ac4`
-- Ethereum Sepolia Bridge: `0xa870B2C67D6A957a40C528Eb96E8b7e51FbbD092`
-- wRBTC Token: `0x25d6d8758FaB9Ae4310b2b826535486e85990788`
+### U2U → ETH Flow
+1. **User sends U2U** to relayer address on U2U Solaris
+2. **Relayer receives** U2U on U2U Solaris Mainnet
+3. **Relayer sends** equivalent ETH to user on Sepolia Testnet
+4. **User receives** ETH in their Sepolia wallet
 
-## 👥 Team Background
+### ETH → U2U Flow
+1. **User sends ETH** to relayer address on Sepolia
+2. **Relayer receives** ETH on Sepolia Testnet
+3. **Relayer sends** equivalent U2U to user on U2U Solaris
+4. **User receives** U2U in their U2U wallet
 
-**Core Team:**
-- **Lead Developer**: Full-stack developer with 5+ years experience in blockchain development, specializing in DeFi protocols and cross-chain solutions
-- **Smart Contract Engineer**: Solidity expert with extensive experience in Rootstock and Ethereum development, previously worked on multiple DeFi protocols
-- **Frontend Architect**: React/Next.js specialist with expertise in Web3 integration and user experience design
-- **DevOps Engineer**: Blockchain infrastructure specialist with experience in deploying and maintaining cross-chain applications
+### ETH → WETH Bridge Flow
+1. **ETH locked** in Sepolia bridge contract
+2. **Relayer mints** WETH on U2U Solaris
+3. **User receives** WETH in their U2U wallet
 
-**Collective Experience:**
-- 15+ years combined blockchain development experience
-- Previous work on major DeFi protocols and cross-chain bridges
-- Deep understanding of Rootstock's unique features and Bitcoin security model
-- Proven track record in building user-friendly DeFi applications
+## 🏗️ Architecture
 
-## 🧪 Testing Instructions
+### Frontend Components
+- **Swap Card**: Main interface for cross-chain token swaps
+- **Bridge Card**: Interface for ETH to WETH bridging
+- **Transaction Modal**: Clean, modal-based progress tracking
+- **Relayer Liquidity**: Real-time relayer balance monitoring
+
+### Smart Contracts
+- **U2UBridge.sol**: Bridge contract deployed on U2U Solaris
+- **SepoliaBridge.sol**: Bridge contract deployed on Sepolia
+- **WETH.sol**: Wrapped ETH token contract on U2U Solaris
+
+### Backend Services
+- **Relayer API**: Processes cross-chain transactions
+- **Price API**: Provides swap quotes and exchange rates
+- **Status API**: Monitors relayer health and liquidity
+
+### Relayer System
+The relayer operates as a **private-key-controlled liquidity hub** that:
+- Maintains balances on both chains
+- Processes cross-chain transfers automatically
+- Handles transaction verification and confirmation
+- Provides real-time status updates
+
+## 🚀 Getting Started
 
 ### Prerequisites
+- Node.js 18+
 - MetaMask or compatible wallet
-- Testnet tokens (tRBTC for Rootstock, ETH for Sepolia)
-- Node.js 18+ installed
+- Testnet tokens (U2U for U2U Solaris, ETH for Sepolia)
 
-### Step-by-Step Testing Guide
-
-1. **Clone and Setup**
+### Installation
    ```bash
+# Clone the repository
    git clone https://github.com/your-username/pocket-protocol
    cd pocket-protocol
+
+# Install dependencies
    npm install
-   cp env.example .env.local
-   ```
 
-2. **Configure Environment**
-   ```bash
-   # Add your WalletConnect Project ID to .env.local
-   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
-   SEPOLIA_RPC_URL=https://1rpc.io/sepolia
-   RELAYER_PRIVATE_KEY=your_relayer_private_key
-   ```
+# Set up environment variables
+cp .env.example .env.local
+# Add your configuration to .env.local
 
-3. **Start Development Server**
-   ```bash
+# Start development server
    npm run dev
    ```
 
-4. **Test Cross-Chain Bridge**
-   - Connect wallet to Rootstock Testnet
-   - Navigate to Bridge page
-   - Enter amount of tRBTC to bridge
-   - Confirm transaction
-   - Verify wRBTC appears on Sepolia
+### Usage
+1. **Connect Wallet**: Connect your MetaMask wallet
+2. **Select Network**: Switch to U2U Solaris or Sepolia
+3. **Choose Operation**: 
+   - Use Swap Card for U2U ↔ ETH swaps
+   - Use Bridge Card for ETH → WETH bridging
+4. **Enter Amount**: Specify the amount to transfer
+5. **Confirm Transaction**: Sign the transaction in your wallet
+6. **Track Progress**: Monitor transaction progress in the modal
+7. **Receive Tokens**: Tokens will appear in your target wallet
 
-5. **Test Token Swapping**
-   - Switch between Rootstock and Sepolia networks
-   - Use Swap page to exchange tokens
-   - Verify real-time price updates
+## 🎯 Key Features
 
-6. **Test Staking Protocol**
-   - Navigate to Stake page
-   - Stake RBTC tokens
-   - Claim RIFF rewards
-   - Verify cross-chain ETH minting
+### User Experience
+- **Clean Modal Interface**: Real-time transaction progress tracking
+- **Chain Validation**: Automatic network switching prompts
+- **Liquidity Checking**: Warns if relayer has insufficient funds
+- **Transaction Verification**: Waits for blockchain confirmation
+- **Explorer Links**: Direct links to view transactions on block explorers
 
-7. **Test Market Explorer**
-   - Visit Explore page
-   - Verify real-time price data
-   - Test search functionality
+### Technical Features
+- **Wagmi Integration**: Web3 wallet connection and transaction handling
+- **Viem**: Low-level blockchain interaction
+- **Next.js 15**: Modern React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Modern UI styling
 
-### Expected Results
-- ✅ Successful bridge transactions on both networks
-- ✅ Real-time price updates from Pyth Network
-- ✅ Seamless wallet switching between networks
-- ✅ Automatic token minting on destination chains
-- ✅ Staking rewards and cross-chain ETH distribution
+## ⚠️ Important Disclaimers
 
-## 🎯 On-Chain Transactions
+### Network Information
+- **U2U Solaris**: This is a **mainnet** network
+- **Sepolia**: This is a **testnet** network
 
-**Rootstock Testnet Transactions:**
-- Bridge Contract Deployment: `0x12FA616A8c8c5B892189743eCE97B97ca8360ac4`
-- Test Bridge Transaction: [View on Rootstock Explorer](https://explorer.testnet.rsk.co/tx/0x...)
-- Staking Transaction: [View on Rootstock Explorer](https://explorer.testnet.rsk.co/tx/0x...)
+### Safety Notes
+- **Do not use real funds** for this project unless officially provided by U2U for testing
+- This is a **hackathon demo** - funds are not protected
+- The relayer is **centralized** for demonstration purposes
+- **Not production-ready** - use at your own risk
 
-**Ethereum Sepolia Transactions:**
-- Bridge Contract Deployment: `0xa870B2C67D6A957a40C528Eb96E8b7e51FbbD092`
-- wRBTC Minting Transaction: [View on Sepolia Etherscan](https://sepolia.etherscan.io/tx/0x...)
-- Cross-Chain Transfer: [View on Sepolia Etherscan](https://sepolia.etherscan.io/tx/0x...)
+### Current Limitations
+- Single relayer wallet (centralized)
+- No multi-signature protection
+- Limited to testnet operations
+- No insurance or fund protection
 
-## 💭 Building on Rootstock - Our Experience
+## 🔮 Future Development Ideas
 
-**What we loved about Rootstock:**
-- **Bitcoin Security**: The merge-mining with Bitcoin provides unparalleled security for our DeFi operations
-- **EVM Compatibility**: Seamless integration with existing Ethereum tooling and libraries
-- **Low Fees**: Significantly lower transaction costs compared to Ethereum mainnet
-- **Fast Finality**: Quick transaction confirmation times for better user experience
-- **Developer-Friendly**: Excellent documentation and supportive community
+### Production Roadmap
+- **Multi-signature Relayer**: Implement multi-sig wallet for enhanced security
+- **Decentralized Relayer Network**: Multiple relayer nodes for redundancy
+- **On-chain Liquidity Pools**: Replace single-key relayer with decentralized pools
+- **Real Mainnet Support**: Support for real ETH and U2U transfers once audited
+- **Additional Chains**: Expand to more blockchain networks
+- **Wrapped Token Support**: Support for additional wrapped tokens
 
-**Challenges we overcame:**
-- **Cross-Chain Complexity**: Building reliable bridges between Rootstock and Ethereum required careful design
-- **Token Standard Differences**: Adapting between tRBTC and wRBTC standards
-- **Relayer Architecture**: Designing a secure and efficient relayer system for cross-chain operations
+### Security Enhancements
+- **Smart Contract Audits**: Professional security audits
+- **Time-locked Operations**: Implement time delays for large transfers
+- **Rate Limiting**: Prevent abuse and ensure fair usage
+- **Emergency Pause**: Circuit breakers for emergency situations
 
-**Rootstock's Unique Value:**
-- The Bitcoin-backed security model gives users confidence in our platform
-- Lower fees make DeFi accessible to more users
-- EVM compatibility allowed us to leverage existing DeFi infrastructure
-- The growing ecosystem provides excellent opportunities for innovation
+## 🛠️ Technical Stack
 
-## 🎥 Demo & Presentation
-
-**Video Demo**: [Watch our comprehensive demo](https://www.loom.com/share/f9b0534563244943971958410b4a998e?sid=efdf705b-78fb-488a-8611-4df8eae1a849)
-
-**Key Features Showcased:**
-- Cross-chain bridge functionality between Rootstock and Ethereum
-- Real-time price feeds integration from Pyth Network
-- Staking protocol with RIFF token rewards
-- Seamless wallet switching between networks
-- Mobile-responsive design and user experience
-- Live transaction processing and confirmation
-
-**Slide Deck**: [View our presentation](https://docs.google.com/presentation/d/your-slides)
-
-## 🚀 Live Demo
-
-**Testnet Deployment**: [https://pocket-protocol.vercel.app](https://pocket-protocol.vercel.app)
-
-**Supported Networks:**
-- Rootstock Testnet (Chain ID: 31)
-- Ethereum Sepolia (Chain ID: 11155111)
-
-## 📊 Technical Architecture
+### Frontend
+- **Next.js 15** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
+- **Wagmi** for Web3 integration
+- **Viem** for blockchain interactions
 
 ### Smart Contracts
-- **Rootstock Bridge**: Handles tRBTC deposits and cross-chain transfers
-- **Ethereum Bridge**: Manages wRBTC minting and withdrawals
-- **Pocket Protocol**: Staking contract with RIFF token rewards
-- **Relayer System**: Automated cross-chain transaction processing
+- **Solidity** for contract development
+- **Hardhat** for development and testing
+- **OpenZeppelin** for security standards
 
-### Frontend Stack
-- **Next.js 15**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Tailwind CSS**: Modern styling system
-- **wagmi**: Ethereum library integration
-- **RainbowKit**: Wallet connection management
+### Backend
+- **Node.js** API server
+- **Express.js** for API endpoints
+- **Web3.js** for blockchain interactions
 
-### Data Sources
-- **Pyth Network**: Real-time price feeds
-- **CoinDCX API**: Alternative price data
-- **Blockchain RPCs**: Direct network communication
+## 📊 Contract Addresses
 
-## 🔒 Security Features
-
-- **Server-side Relayer**: Private keys never exposed to client
-- **Smart Contract Validation**: All transactions verified on-chain
-- **Multi-signature Support**: Enterprise-grade security
-- **Comprehensive Error Handling**: Graceful failure management
-
-## 📈 Future Roadmap
-
-- **Mainnet Deployment**: Launch on Rootstock and Ethereum mainnets
-- **Additional Chains**: Support for more blockchain networks
-- **Advanced Features**: Limit orders, DCA strategies, yield farming
-- **Mobile App**: Native iOS and Android applications
-- **Institutional Features**: Advanced trading tools and analytics
+| Contract | Network | Address | Explorer |
+|----------|---------|---------|----------|
+| U2UBridge | U2U Solaris | `0x20c452438968C942729D70035fF2dD86481F6EaB` | [View](https://u2uscan.xyz/address/0x20c452438968C942729D70035fF2dD86481F6EaB) |
+| SepoliaBridge | Sepolia | `0xe564df234366234b279c9a5d547c94AA4a5C08F3` | [View](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3) |
+| WETH | U2U Solaris | `0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D` | [View](https://u2uscan.xyz/address/0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D) |
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) and submit pull requests.
+We welcome contributions! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## 📄 License
 
@@ -198,11 +189,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-- **Email**: team@pocketprotocol.io
-- **Twitter**: [@PocketProtocol](https://twitter.com/PocketProtocol)
+- **Hackathon**: VietBUIDL Hackathon on HackQuest Demo
+- **Project**: Pocket Protocol Cross-Chain Bridge
+- **Built with ❤️** for the U2U and Ethereum communities
 
 ---
 
-**Built with ❤️ for the Rootstock and Ethereum communities**
-
-*Pocket Protocol - Where every chain connects, every swap is instant, and every stake earns more.*
+**⚠️ Disclaimer**: This is a hackathon demonstration project. Do not use real funds unless officially provided for testing. The relayer system is centralized and not suitable for production use.
