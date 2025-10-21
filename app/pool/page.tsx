@@ -1,8 +1,13 @@
+"use client"
 import { Navbar } from "@/components/navbar";
 import { BokehBackground } from "@/components/ui/bokeh-background";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TrendingUp, Users } from "lucide-react";
+import { useState } from "react";
+import { useAccount, useBalance } from "wagmi";
+import { formatEther } from "viem";
 
 const pools = [
   {
@@ -44,6 +49,22 @@ const pools = [
 ];
 
 export default function PoolPage() {
+  const { address, chainId } = useAccount()
+  const [stakeAmount, setStakeAmount] = useState("")
+  
+  // Fetch MON balance
+  const { data: monBalance } = useBalance({
+    address,
+    chainId: 10143, // Monad Testnet
+  })
+
+  // Handle Max button click for MON staking
+  const handleMaxStakeAmount = () => {
+    if (monBalance) {
+      setStakeAmount(formatEther(monBalance.value))
+    }
+  }
+
   return (
     <main className="min-h-[100svh] relative">
       <Navbar />
@@ -143,6 +164,39 @@ export default function PoolPage() {
                   <span className="text-muted-foreground">Avg. APY</span>
                   <span className="font-semibold text-green-400">13.7%</span>
                 </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 border border-white/10 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/40">
+              <div className="flex items-center gap-3 mb-4">
+                <TrendingUp className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-semibold">MON Staking</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Input 
+                    placeholder="Enter MON amount to stake"
+                    value={stakeAmount}
+                    onChange={(e) => setStakeAmount(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleMaxStakeAmount}
+                    variant="secondary" 
+                    className="text-xs px-3"
+                    disabled={!address || !monBalance}
+                  >
+                    MAX
+                  </Button>
+                </div>
+                <Button 
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
+                >
+                  Stake
+                </Button>
+                <p className="text-sm text-muted-foreground text-center">
+                  Stake MON to access other EVM liquidity
+                </p>
               </div>
             </Card>
           </div>

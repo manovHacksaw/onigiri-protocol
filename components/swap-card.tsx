@@ -395,7 +395,7 @@ export function SwapCard({ className }: { className?: string }) {
           <Button
             onClick={handleSwap}
             disabled={!sellToken || !buyToken || !sellAmount || isLoading || isLoadingQuote || isPending || isConfirming || !address || !liquidityCheck.sufficient || !chainValidation.isValid}
-            className="mt-6 w-full h-12 text-lg font-medium bg-red-500 hover:bg-red-600 text-white rounded-4xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-6 w-full h-12 text-lg font-medium bg-green-500 hover:bg-green-600 text-white rounded-4xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingQuote ? (
               <div className="flex items-center gap-2">

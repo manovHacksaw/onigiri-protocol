@@ -9,7 +9,7 @@ export default function BridgePage() {
 
       <BokehBackground />
 
-      <section className="mx-auto max-w-6xl px-4 pt-20 pb-16 md:pt-28">
+      <section className="mx-auto max-w-6xl px-4 pt-8 pb-16 md:pt-12">
         <div className="flex flex-col items-center text-center">
           <h1 className="text-pretty text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight">
             {"Bridge tokens"}

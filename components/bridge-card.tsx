@@ -219,7 +219,7 @@ export function BridgeCard({ className }: { className?: string }) {
             Number.parseFloat(fromAmount) <= 0 ||
             Number.parseFloat(fromAmount) > Number.parseFloat(availableBalance)
           }
-          className="mt-6 w-full h-12 text-lg font-medium bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-6 w-full h-12 text-lg font-medium bg-green-500 hover:bg-green-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <div className="flex items-center gap-2">
@@ -295,3 +295,4 @@ export function BridgeCard({ className }: { className?: string }) {
     </Card>
   )
 }
+

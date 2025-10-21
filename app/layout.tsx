@@ -8,7 +8,7 @@ import { Providers } from "@/components/providers"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Pocket",
+  title: "Onigiri Protocol",
   description: "swap like its cool",
 }
 
