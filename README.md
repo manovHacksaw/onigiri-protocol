@@ -12,12 +12,13 @@ Pocket Protocol is a cross-chain bridge application that enables users to swap t
 - **Native Token**: MON
 - **Explorer**: [https://testnet.monadexplorer.com](https://testnet.monadexplorer.com)
 - **Bridge Contract**: [`0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca`](https://testnet.monadexplorer.com/address/0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca)
+- **WETH Contract**: [`0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623`](https://testnet.monadexplorer.com/address/0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623)
+- **Swap Contract**: [`0x5FbDB2315678afecb367f032d93F642f64180aa3`](https://testnet.monadexplorer.com/address/0x5FbDB2315678afecb367f032d93F642f64180aa3)
 
 ### Sepolia Testnet (Chain ID: 11155111)
 - **Native Token**: ETH
 - **Explorer**: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
 - **Bridge Contract**: [`0xe564df234366234b279c9a5d547c94AA4a5C08F3`](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3)
-- **WETH Contract**: [`0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623`](https://testnet.monadexplorer.com/address/0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623)
 
 ## 🔄 Bridge Functionality
 
@@ -47,7 +48,7 @@ Pocket Protocol is a cross-chain bridge application that enables users to swap t
 - **Relayer Liquidity**: Real-time relayer balance monitoring
 
 ### Smart Contracts
-- **U2UBridge.sol**: Bridge contract deployed on Monad Testnet
+- **MonadBridge.sol**: Bridge contract deployed on Monad Testnet
 - **SepoliaBridge.sol**: Bridge contract deployed on Sepolia
 - **WETH.sol**: Wrapped ETH token contract on Monad Testnet
 
@@ -80,8 +81,12 @@ The relayer operates as a **private-key-controlled liquidity hub** that:
    npm install
 
 # Set up environment variables
-cp .env.example .env.local
-# Add your configuration to .env.local
+   cp .env.example .env.local
+   # Add your configuration to .env.local
+   # Required variables:
+   # - SEPOLIA_RPC_URL=https://1rpc.io/sepolia
+   # - MONAD_RPC_URL=https://testnet-rpc.monad.xyz
+   # - PRIVATE_KEY=your-relayer-private-key
 
 # Start development server
    npm run dev
@@ -171,9 +176,10 @@ cp .env.example .env.local
 
 | Contract | Network | Address | Explorer |
 |----------|---------|---------|----------|
-| U2UBridge | Monad Testnet | `0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca` | [View](https://testnet.monadexplorer.com/address/0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca) |
+| MonadBridge | Monad Testnet | `0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca` | [View](https://testnet.monadexplorer.com/address/0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca) |
 | SepoliaBridge | Sepolia | `0xe564df234366234b279c9a5d547c94AA4a5C08F3` | [View](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3) |
 | WETH | Monad Testnet | `0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623` | [View](https://testnet.monadexplorer.com/address/0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623) |
+| Swap Contract | Monad Testnet | `0x5FbDB2315678afecb367f032d93F642f64180aa3` | [View](https://testnet.monadexplorer.com/address/0x5FbDB2315678afecb367f032d93F642f64180aa3) |
 
 ## 🤝 Contributing
 
