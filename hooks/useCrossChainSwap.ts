@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSendTransaction, useSwitchChain } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { 
-  U2U_BRIDGE_ADDRESS,
+  MONAD_BRIDGE_ADDRESS,
   SEPOLIA_BRIDGE_ADDRESS,
-  U2U_BRIDGE_ABI,
+  MONAD_BRIDGE_ABI,
   SEPOLIA_BRIDGE_ABI
 } from '@/lib/contracts';
 import { getSwapQuote, SwapQuote } from '@/lib/priceApi';
@@ -49,7 +49,7 @@ export function useCrossChainSwap() {
     sourceTxHash?: string;
     targetTxHash?: string;
     error?: string;
-    direction?: 'u2u-to-sepolia' | 'sepolia-to-u2u';
+    direction?: 'monad-to-sepolia' | 'sepolia-to-monad';
   }>({ step: 'idle' });
   
   // Transaction modal state
@@ -65,7 +65,7 @@ export function useCrossChainSwap() {
     ));
   }, []);
 
-  const initializeTransactionSteps = useCallback((direction: 'u2u-to-sepolia' | 'sepolia-to-u2u') => {
+  const initializeTransactionSteps = useCallback((direction: 'monad-to-sepolia' | 'sepolia-to-monad') => {
     const steps: TransactionStep[] = [
       {
         id: 'signature',
@@ -75,20 +75,20 @@ export function useCrossChainSwap() {
       },
       {
         id: 'source-confirmation',
-        title: direction === 'u2u-to-sepolia' ? 'Sending U2U to relayer...' : 'Sending ETH to relayer...',
+        title: direction === 'monad-to-sepolia' ? 'Sending MON to relayer...' : 'Sending ETH to relayer...',
         description: 'Transaction submitted — awaiting confirmation...',
         status: 'pending'
       },
       {
         id: 'relayer-processing',
-        title: direction === 'u2u-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending U2U...',
+        title: direction === 'monad-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending MON...',
         description: 'Processing cross-chain transfer...',
         status: 'pending'
       },
       {
         id: 'completion',
         title: 'Bridge successful!',
-        description: direction === 'u2u-to-sepolia' ? 'ETH transferred successfully!' : 'U2U transferred successfully!',
+        description: direction === 'monad-to-sepolia' ? 'ETH transferred successfully!' : 'MON transferred successfully!',
         status: 'pending'
       }
     ];
@@ -128,14 +128,14 @@ export function useCrossChainSwap() {
     
     // Validate that user is on the correct chain for the source transaction
     if (chainId !== fromChainId) {
-      throw new Error(`Please switch to ${fromChainId === 39 ? 'U2U Solaris Mainnet' : 'Sepolia Testnet'} to send ${fromChainId === 39 ? 'U2U' : 'ETH'}`);
+      throw new Error(`Please switch to ${fromChainId === 10143 ? 'Monad Testnet' : 'Sepolia Testnet'} to send ${fromChainId === 10143 ? 'MON' : 'ETH'}`);
     }
     
     // Reset bridge status
     setBridgeStatus({ step: 'idle' });
     
     try {
-      const direction = fromChainId === 39 ? 'u2u-to-sepolia' : 'sepolia-to-u2u';
+      const direction = fromChainId === 10143 ? 'monad-to-sepolia' : 'sepolia-to-monad';
       
       // Initialize transaction modal
       initializeTransactionSteps(direction);
@@ -149,7 +149,7 @@ export function useCrossChainSwap() {
         }
         
         const relayerAddress = relayerStatus.relayerAddress;
-      console.log(`Sending ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} to relayer address:`, relayerAddress);
+      console.log(`Sending ${direction === 'monad-to-sepolia' ? 'MON' : 'ETH'} to relayer`);
       
       // Step 2: Send transaction and wait for signature
       updateTransactionStep('signature', { status: 'in-progress' });
@@ -208,15 +208,15 @@ export function useCrossChainSwap() {
       setCurrentStep('source-confirmation');
       
       // Simple wait like useBridge (no complex verification)
-      console.log(`⏳ Waiting for ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} confirmation...`);
+      console.log(`Waiting for ${direction === 'monad-to-sepolia' ? 'MON' : 'ETH'} confirmation`);
       await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds like useBridge
       
-      console.log(`✅ ${direction === 'u2u-to-sepolia' ? 'U2U' : 'ETH'} transaction confirmed`);
+      console.log(`${direction === 'monad-to-sepolia' ? 'MON' : 'ETH'} transaction confirmed`);
       
       // Update status to show source transaction is confirmed
       updateTransactionStep('source-confirmation', { 
         status: 'completed',
-        title: direction === 'u2u-to-sepolia' ? 'U2U sent to relayer' : 'ETH sent to relayer',
+        title: direction === 'monad-to-sepolia' ? 'MON sent to relayer' : 'ETH sent to relayer',
         description: 'Transaction confirmed on blockchain'
       });
       
@@ -229,17 +229,12 @@ export function useCrossChainSwap() {
       // Step 4: Call relayer API (using simple approach like useBridge)
       updateTransactionStep('relayer-processing', { 
         status: 'in-progress',
-        title: direction === 'u2u-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending U2U...',
+        title: direction === 'monad-to-sepolia' ? 'Relayer sending ETH...' : 'Relayer sending MON...',
         description: 'Processing cross-chain transfer...'
       });
       setCurrentStep('relayer-processing');
       
-      console.log('Calling relayer API with:', {
-        recipient,
-        amount: fromAmount,
-        transferId: txHash,
-        action: direction === 'u2u-to-sepolia' ? 'swap' : 'swap-eth-to-u2u'
-      });
+      console.log('Calling relayer API');
       
       // Wait a moment for the transaction to be processed (like useBridge does)
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -254,26 +249,22 @@ export function useCrossChainSwap() {
           recipient,
           amount: fromAmount,
           transferId: txHash,
-          action: direction === 'u2u-to-sepolia' ? 'swap' : 'swap-eth-to-u2u'
+          action: direction === 'monad-to-sepolia' ? 'swap' : 'swap-eth-to-monad'
         }),
       });
 
       const relayerResult = await relayerResponse.json();
-      console.log('Relayer response:', relayerResult);
         
       if (!relayerResult.success) {
         console.error('Failed to process relayer:', relayerResult.error);
         throw new Error(relayerResult.error || 'Relayer processing failed');
       }
       
-      console.log('Relayer success:', relayerResult.success);
-      console.log('Relayer txHash:', relayerResult.txHash);
-      console.log('Relayer mintTxHash:', relayerResult.mintTxHash);
+      console.log('Relayer success');
         
       // Step 5: Get target transaction hash (don't wait for verification)
       const targetTxHash = relayerResult.txHash || relayerResult.mintTxHash;
       
-      console.log('Target transaction hash:', targetTxHash);
       
       if (!targetTxHash) {
         console.warn('No transaction hash returned from relayer, but operation was successful');
@@ -286,7 +277,7 @@ export function useCrossChainSwap() {
       // Update final status
       updateTransactionStep('relayer-processing', { 
         status: 'completed',
-        title: direction === 'u2u-to-sepolia' ? 'ETH sent to recipient' : 'U2U sent to recipient',
+        title: direction === 'monad-to-sepolia' ? 'ETH sent to recipient' : 'MON sent to recipient',
         description: targetTxHash ? 'Cross-chain transfer completed' : 'Transfer completed (check your wallet)',
         txHash: targetTxHash,
         explorerUrl: targetTxHash ? getExplorerUrl(targetTxHash, toChainId) : undefined
@@ -295,7 +286,7 @@ export function useCrossChainSwap() {
       updateTransactionStep('completion', { 
         status: 'completed',
         title: 'Bridge successful!',
-        description: direction === 'u2u-to-sepolia' ? 'ETH transferred successfully!' : 'U2U transferred successfully!'
+        description: direction === 'monad-to-sepolia' ? 'ETH transferred successfully!' : 'MON transferred successfully!'
       });
       setCurrentStep('completion');
       
@@ -306,11 +297,11 @@ export function useCrossChainSwap() {
         direction
       });
       
-      console.log(`✅ ${direction === 'u2u-to-sepolia' ? 'ETH' : 'U2U'} successfully bridged`);
+      console.log(`${direction === 'monad-to-sepolia' ? 'ETH' : 'MON'} successfully bridged`);
         
         return { 
-        u2uTx: direction === 'u2u-to-sepolia' ? txHash : targetTxHash, 
-        sepoliaTx: direction === 'u2u-to-sepolia' ? targetTxHash : txHash 
+        monadTx: direction === 'monad-to-sepolia' ? txHash : targetTxHash, 
+        sepoliaTx: direction === 'monad-to-sepolia' ? targetTxHash : txHash 
         };
       
     } catch (err) {

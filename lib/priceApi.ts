@@ -18,7 +18,7 @@ export interface SwapQuote {
 
 // Mock price data - in production, you would fetch from a real API like CoinGecko, 1inch, etc.
 const MOCK_PRICES: Record<string, number> = {
-  'U2U': 0.006144, // U2U native token
+  'MON': 0.006144, // Monad native token
   'ETH': 4327.95,  // Ethereum
   'USDC': 1,       // USD Coin
   'USDT': 1,       // Tether
@@ -71,8 +71,8 @@ export async function getSwapQuote(
 
 export function getChainNativeToken(chainId: number): string {
   switch (chainId) {
-    case 39: // U2U Solaris Mainnet
-      return 'U2U';
+    case 10143: // Monad Testnet
+      return 'MON';
     case 11155111: // Sepolia
       return 'ETH';
     default:
@@ -82,8 +82,8 @@ export function getChainNativeToken(chainId: number): string {
 
 export function getChainName(chainId: number): string {
   switch (chainId) {
-    case 39:
-      return 'U2U Solaris';
+    case 10143:
+      return 'Monad Testnet';
     case 11155111:
       return 'Sepolia';
     default:

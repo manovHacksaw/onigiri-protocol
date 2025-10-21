@@ -12,7 +12,7 @@ async function main() {
   const relayerAddress = process.env.RELAYER_ADDRESS || deployer.address;
   console.log("Using relayer address:", relayerAddress);
 
-  // Deploy WETH Contract on U2U Solaris Mainnet
+  // Deploy WETH Contract on Monad Testnet
   console.log("\n=== Deploying WETH Contract ===");
   const WETH = await ethers.getContractFactory("WETH");
   const weth = await WETH.deploy();
@@ -20,17 +20,17 @@ async function main() {
   const wethAddress = await weth.getAddress();
   console.log("WETH deployed to:", wethAddress);
 
-  // Deploy U2U Bridge on U2U Solaris Mainnet
-  console.log("\n=== Deploying U2U Bridge ===");
-  const U2UBridge = await ethers.getContractFactory("U2UBridge");
-  const u2uBridge = await U2UBridge.deploy(wethAddress, relayerAddress);
-  await u2uBridge.waitForDeployment();
-  const u2uBridgeAddress = await u2uBridge.getAddress();
-  console.log("U2U Bridge deployed to:", u2uBridgeAddress);
+  // Deploy Monad Bridge on Monad Testnet
+  console.log("\n=== Deploying Monad Bridge ===");
+  const MonadBridge = await ethers.getContractFactory("U2UBridge");
+  const monadBridge = await MonadBridge.deploy(wethAddress, relayerAddress);
+  await monadBridge.waitForDeployment();
+  const monadBridgeAddress = await monadBridge.getAddress();
+  console.log("Monad Bridge deployed to:", monadBridgeAddress);
 
   // Set bridge in WETH contract
   console.log("\n=== Setting Bridge in WETH Contract ===");
-  const setBridgeTx = await weth.setBridge(u2uBridgeAddress);
+  const setBridgeTx = await weth.setBridge(monadBridgeAddress);
   await setBridgeTx.wait();
   console.log("Bridge set in WETH contract");
 
@@ -45,13 +45,13 @@ async function main() {
   // Save deployment info
   const deploymentInfo = {
     networks: {
-      u2u: {
-        chainId: 39,
-        name: "U2U Solaris Mainnet",
-        bridgeAddress: u2uBridgeAddress,
+      monad: {
+        chainId: 10143,
+        name: "Monad Testnet",
+        bridgeAddress: monadBridgeAddress,
         wethAddress: wethAddress,
-        rpcUrl: "https://rpc-mainnet.u2u.xyz",
-        blockExplorer: "https://u2uscan.xyz"
+        rpcUrl: "https://testnet-rpc.monad.xyz",
+        blockExplorer: "https://testnet.monadexplorer.com"
       },
       sepolia: {
         chainId: 11155111,
@@ -72,8 +72,8 @@ async function main() {
   // Verify contracts (if on supported networks)
   console.log("\n=== Verification Instructions ===");
   console.log("To verify contracts, run:");
-  console.log(`npx hardhat verify --network u2u ${wethAddress}`);
-  console.log(`npx hardhat verify --network u2u ${u2uBridgeAddress} "${wethAddress}" "${relayerAddress}"`);
+  console.log(`npx hardhat verify --network monad ${wethAddress}`);
+  console.log(`npx hardhat verify --network monad ${monadBridgeAddress} "${wethAddress}" "${relayerAddress}"`);
   console.log(`npx hardhat verify --network sepolia ${sepoliaBridgeAddress} "${relayerAddress}"`);
 
   console.log("\n=== Next Steps ===");

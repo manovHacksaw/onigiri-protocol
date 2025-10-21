@@ -1,10 +1,10 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  console.log("Testing U2U Bridge Flow...");
+  console.log("Testing Monad Bridge Flow...");
 
   // Test configuration
-  const testAmount = "1.0"; // 1 U2U
+  const testAmount = "1.0"; // 1 MON
   const testRecipient = "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6"; // Test address
 
   try {
@@ -16,9 +16,9 @@ async function main() {
     if (relayerData.success) {
       console.log("✅ Relayer is operational");
       console.log("Relayer address:", relayerData.relayerAddress);
-      console.log("U2U balance:", relayerData.chains.u2u.balance, "U2U");
+      console.log("Monad balance:", relayerData.chains.monad.balance, "MON");
       console.log("Sepolia balance:", relayerData.chains.sepolia.balance, "ETH");
-      console.log("Current prices - U2U:", relayerData.prices.u2u, "ETH:", relayerData.prices.eth);
+      console.log("Current prices - Monad:", relayerData.prices.monad, "ETH:", relayerData.prices.eth);
     } else {
       console.log("❌ Relayer is not operational:", relayerData.error);
       return;
@@ -50,18 +50,18 @@ async function main() {
     // Test 3: Test price fetching
     console.log("\n=== Test 3: Price Fetching ===");
     try {
-      const u2uResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=u2u&vs_currencies=usd');
-      const u2uData = await u2uResponse.json();
-      const u2uPrice = u2uData.u2u?.usd || 0.006144;
+      const monadResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd');
+      const monadData = await monadResponse.json();
+      const monadPrice = monadData.monad?.usd || 0.006144;
 
       const ethResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
       const ethData = await ethResponse.json();
       const ethPrice = ethData.ethereum?.usd || 4327.95;
 
       console.log("✅ Price fetching successful");
-      console.log("U2U price: $", u2uPrice);
+      console.log("Monad price: $", monadPrice);
       console.log("ETH price: $", ethPrice);
-      console.log("Conversion rate: 1 U2U =", (u2uPrice / ethPrice).toFixed(8), "ETH");
+      console.log("Conversion rate: 1 MON =", (monadPrice / ethPrice).toFixed(8), "ETH");
     } catch (error) {
       console.log("❌ Price fetching failed:", error.message);
     }
@@ -72,7 +72,7 @@ async function main() {
     console.log("1. Deploy contracts to both networks");
     console.log("2. Update contract addresses in lib/addresses.ts");
     console.log("3. Fund the Sepolia bridge contract with ETH");
-    console.log("4. Test with real U2U transactions");
+    console.log("4. Test with real Monad transactions");
 
   } catch (error) {
     console.error("Test failed:", error);

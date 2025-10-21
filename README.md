@@ -1,42 +1,42 @@
 # Pocket Protocol – Cross-Chain Bridge Application
 
-**A cross-chain bridge enabling seamless token swaps between U2U Solaris Mainnet and Sepolia Testnet, built for the VietBUIDL Hackathon on HackQuest Demo.**
+**A cross-chain bridge enabling seamless token swaps between Monad Testnet and Sepolia Testnet, built for the VietBUIDL Hackathon on HackQuest Demo.**
 
 ## 🌉 Overview
 
-Pocket Protocol is a cross-chain bridge application that enables users to swap tokens between U2U Solaris Mainnet and Sepolia Testnet. The application provides a user-friendly interface for cross-chain token transfers with real-time transaction tracking and automated relayer processing.
+Pocket Protocol is a cross-chain bridge application that enables users to swap tokens between Monad Testnet and Sepolia Testnet. The application provides a user-friendly interface for cross-chain token transfers with real-time transaction tracking and automated relayer processing.
 
 ## 🔗 Supported Chains & Tokens
 
-### U2U Solaris Mainnet (Chain ID: 39)
-- **Native Token**: U2U
-- **Explorer**: [https://u2uscan.xyz](https://u2uscan.xyz)
-- **Bridge Contract**: [`0x20c452438968C942729D70035fF2dD86481F6EaB`](https://u2uscan.xyz/address/0x20c452438968C942729D70035fF2dD86481F6EaB)
+### Monad Testnet (Chain ID: 10143)
+- **Native Token**: MON
+- **Explorer**: [https://testnet.monadexplorer.com](https://testnet.monadexplorer.com)
+- **Bridge Contract**: [`0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca`](https://testnet.monadexplorer.com/address/0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca)
 
 ### Sepolia Testnet (Chain ID: 11155111)
 - **Native Token**: ETH
 - **Explorer**: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
 - **Bridge Contract**: [`0xe564df234366234b279c9a5d547c94AA4a5C08F3`](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3)
-- **WETH Contract**: [`0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D`](https://u2uscan.xyz/address/0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D)
+- **WETH Contract**: [`0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623`](https://testnet.monadexplorer.com/address/0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623)
 
 ## 🔄 Bridge Functionality
 
-### U2U → ETH Flow
-1. **User sends U2U** to relayer address on U2U Solaris
-2. **Relayer receives** U2U on U2U Solaris Mainnet
+### MON → ETH Flow
+1. **User sends MON** to relayer address on Monad Testnet
+2. **Relayer receives** MON on Monad Testnet
 3. **Relayer sends** equivalent ETH to user on Sepolia Testnet
 4. **User receives** ETH in their Sepolia wallet
 
-### ETH → U2U Flow
+### ETH → MON Flow
 1. **User sends ETH** to relayer address on Sepolia
 2. **Relayer receives** ETH on Sepolia Testnet
-3. **Relayer sends** equivalent U2U to user on U2U Solaris
-4. **User receives** U2U in their U2U wallet
+3. **Relayer sends** equivalent MON to user on Monad Testnet
+4. **User receives** MON in their Monad wallet
 
 ### ETH → WETH Bridge Flow
 1. **ETH locked** in Sepolia bridge contract
-2. **Relayer mints** WETH on U2U Solaris
-3. **User receives** WETH in their U2U wallet
+2. **Relayer mints** WETH on Monad Testnet
+3. **User receives** WETH in their Monad wallet
 
 ## 🏗️ Architecture
 
@@ -47,9 +47,9 @@ Pocket Protocol is a cross-chain bridge application that enables users to swap t
 - **Relayer Liquidity**: Real-time relayer balance monitoring
 
 ### Smart Contracts
-- **U2UBridge.sol**: Bridge contract deployed on U2U Solaris
+- **U2UBridge.sol**: Bridge contract deployed on Monad Testnet
 - **SepoliaBridge.sol**: Bridge contract deployed on Sepolia
-- **WETH.sol**: Wrapped ETH token contract on U2U Solaris
+- **WETH.sol**: Wrapped ETH token contract on Monad Testnet
 
 ### Backend Services
 - **Relayer API**: Processes cross-chain transactions
@@ -68,7 +68,7 @@ The relayer operates as a **private-key-controlled liquidity hub** that:
 ### Prerequisites
 - Node.js 18+
 - MetaMask or compatible wallet
-- Testnet tokens (U2U for U2U Solaris, ETH for Sepolia)
+- Testnet tokens (MON for Monad Testnet, ETH for Sepolia)
 
 ### Installation
    ```bash
@@ -89,9 +89,9 @@ cp .env.example .env.local
 
 ### Usage
 1. **Connect Wallet**: Connect your MetaMask wallet
-2. **Select Network**: Switch to U2U Solaris or Sepolia
-3. **Choose Operation**: 
-   - Use Swap Card for U2U ↔ ETH swaps
+2. **Select Network**: Switch to Monad Testnet or Sepolia
+3. **Choose Operation**:
+   - Use Swap Card for MON ↔ ETH swaps
    - Use Bridge Card for ETH → WETH bridging
 4. **Enter Amount**: Specify the amount to transfer
 5. **Confirm Transaction**: Sign the transaction in your wallet
@@ -117,11 +117,11 @@ cp .env.example .env.local
 ## ⚠️ Important Disclaimers
 
 ### Network Information
-- **U2U Solaris**: This is a **mainnet** network
+- **Monad Testnet**: This is a **testnet** network
 - **Sepolia**: This is a **testnet** network
 
 ### Safety Notes
-- **Do not use real funds** for this project unless officially provided by U2U for testing
+- **Do not use real funds** for this project unless officially provided by Monad for testing
 - This is a **hackathon demo** - funds are not protected
 - The relayer is **centralized** for demonstration purposes
 - **Not production-ready** - use at your own risk
@@ -138,7 +138,7 @@ cp .env.example .env.local
 - **Multi-signature Relayer**: Implement multi-sig wallet for enhanced security
 - **Decentralized Relayer Network**: Multiple relayer nodes for redundancy
 - **On-chain Liquidity Pools**: Replace single-key relayer with decentralized pools
-- **Real Mainnet Support**: Support for real ETH and U2U transfers once audited
+- **Real Mainnet Support**: Support for real ETH and MON transfers once audited
 - **Additional Chains**: Expand to more blockchain networks
 - **Wrapped Token Support**: Support for additional wrapped tokens
 
@@ -171,9 +171,9 @@ cp .env.example .env.local
 
 | Contract | Network | Address | Explorer |
 |----------|---------|---------|----------|
-| U2UBridge | U2U Solaris | `0x20c452438968C942729D70035fF2dD86481F6EaB` | [View](https://u2uscan.xyz/address/0x20c452438968C942729D70035fF2dD86481F6EaB) |
+| U2UBridge | Monad Testnet | `0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca` | [View](https://testnet.monadexplorer.com/address/0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca) |
 | SepoliaBridge | Sepolia | `0xe564df234366234b279c9a5d547c94AA4a5C08F3` | [View](https://sepolia.etherscan.io/address/0xe564df234366234b279c9a5d547c94AA4a5C08F3) |
-| WETH | U2U Solaris | `0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D` | [View](https://u2uscan.xyz/address/0x3BfA22D8b5fD0f63E96425717BC58910F4F7DD6D) |
+| WETH | Monad Testnet | `0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623` | [View](https://testnet.monadexplorer.com/address/0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623) |
 
 ## 🤝 Contributing
 
@@ -191,7 +191,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Hackathon**: VietBUIDL Hackathon on HackQuest Demo
 - **Project**: Pocket Protocol Cross-Chain Bridge
-- **Built with ❤️** for the U2U and Ethereum communities
+- **Built with ❤️** for the Monad and Ethereum communities
 
 ---
 

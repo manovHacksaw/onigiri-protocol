@@ -7,7 +7,7 @@ echo "=============================================="
 if [ ! -f .env ]; then
     echo "❌ Error: .env file not found!"
     echo "Please create .env file with:"
-    echo "U2U_RPC_URL=https://rpc-mainnet.u2u.xyz"
+    echo "MONAD_RPC_URL=https://testnet-rpc.monad.xyz"
     echo "SEPOLIA_RPC_URL=https://1rpc.io/sepolia"
     echo "PRIVATE_KEY=your-relayer-private-key"
     exit 1
@@ -17,9 +17,9 @@ fi
 echo "📦 Installing OpenZeppelin contracts..."
 bun add @openzeppelin/contracts
 
-echo "📋 Deploying to U2U Solaris Mainnet..."
-echo "--------------------------------------"
-npx --yes hardhat run scripts/deploy.js --network u2u
+echo "📋 Deploying to Monad Testnet..."
+echo "--------------------------------"
+npx --yes hardhat run scripts/deploy.js --network monad
 
 echo ""
 echo "📋 Deploying to Sepolia Testnet..."

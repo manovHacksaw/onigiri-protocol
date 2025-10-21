@@ -1,28 +1,28 @@
 import { createPublicClient, http, parseEther } from 'viem'
 import { sepolia } from 'viem/chains'
 
-// U2U Solaris chain configuration
-const u2uSolaris = {
-  id: 39,
-  name: 'U2U Solaris Mainnet',
-  network: 'u2u-solaris',
+// Monad Testnet chain configuration
+const monadTestnet = {
+  id: 10143,
+  name: 'Monad Testnet',
+  network: 'monad-testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'U2U',
-    symbol: 'U2U',
+    name: 'MON',
+    symbol: 'MON',
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc.u2uscan.xyz'],
+      http: ['https://testnet-rpc.monad.xyz'],
     },
     public: {
-      http: ['https://rpc.u2uscan.xyz'],
+      http: ['https://testnet-rpc.monad.xyz'],
     },
   },
   blockExplorers: {
-    default: { name: 'U2UScan', url: 'https://u2uscan.xyz' },
+    default: { name: 'Monad Explorer', url: 'https://testnet.monadexplorer.com' },
   },
-  testnet: false,
+  testnet: true,
 }
 
 export interface TransactionVerificationResult {
@@ -51,7 +51,7 @@ export async function verifyTransaction({
   try {
     // Create the appropriate client based on chain
     const client = createPublicClient({
-      chain: chainId === 11155111 ? sepolia : u2uSolaris,
+      chain: chainId === 11155111 ? sepolia : monadTestnet,
       transport: http()
     })
 
@@ -109,7 +109,7 @@ export async function verifyTransaction({
 export async function getTransactionDetails(hash: string, chainId: number) {
   try {
     const client = createPublicClient({
-      chain: chainId === 11155111 ? sepolia : u2uSolaris,
+      chain: chainId === 11155111 ? sepolia : monadTestnet,
       transport: http()
     })
 
@@ -135,8 +135,8 @@ export async function getTransactionDetails(hash: string, chainId: number) {
 export function getExplorerUrl(hash: string, chainId: number): string {
   if (chainId === 11155111) {
     return `https://sepolia.etherscan.io/tx/${hash}`
-  } else if (chainId === 39) {
-    return `https://u2uscan.xyz/tx/${hash}`
+  } else if (chainId === 10143) {
+    return `https://testnet.monadexplorer.com/tx/${hash}`
   }
   return ''
 }
@@ -147,8 +147,8 @@ export function getExplorerUrl(hash: string, chainId: number): string {
 export function getChainDisplayName(chainId: number): string {
   if (chainId === 11155111) {
     return 'Sepolia Testnet'
-  } else if (chainId === 39) {
-    return 'U2U Solaris Mainnet'
+  } else if (chainId === 10143) {
+    return 'Monad Testnet'
   }
   return `Chain ${chainId}`
 }

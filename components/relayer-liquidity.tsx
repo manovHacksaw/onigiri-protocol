@@ -46,7 +46,7 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
     )
   }
 
-  const totalLiquidityUSD = relayerStatus.chains.u2u.balanceUSD + relayerStatus.chains.sepolia.balanceUSD
+  const totalLiquidityUSD = (relayerStatus.chains.monad.balanceUSD || 0) + (relayerStatus.chains.sepolia.balanceUSD || 0)
 
   return (
     <Card className={cn("p-4 border border-white/10 bg-card/50 backdrop-blur", className)}>
@@ -83,25 +83,25 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
           </div>
         </div>
 
-        {/* U2U Liquidity */}
+        {/* Monad Liquidity */}
         <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/10">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-            <span className="text-sm font-medium">U2U Solaris</span>
+            <span className="text-sm font-medium">Monad Testnet</span>
           </div>
           <div className="text-right">
             {isLoading ? (
               <LoadingShimmer className="w-20 h-4 mb-1" />
             ) : (
               <div className="text-sm font-semibold">
-                {relayerStatus.chains.u2u.balance.toFixed(4)} {relayerStatus.chains.u2u.symbol}
+                {relayerStatus.chains.monad.balance.toFixed(4)} {relayerStatus.chains.monad.symbol}
               </div>
             )}
             {isLoading ? (
               <LoadingShimmer className="w-12 h-3" />
             ) : (
               <div className="text-xs text-muted-foreground">
-                ${relayerStatus.chains.u2u.balanceUSD.toFixed(2)}
+                ${relayerStatus.chains.monad.balanceUSD?.toFixed(2) || '0.00'}
               </div>
             )}
           </div>
@@ -125,7 +125,7 @@ export function RelayerLiquidity({ className }: RelayerLiquidityProps) {
               <LoadingShimmer className="w-12 h-3" />
             ) : (
               <div className="text-xs text-muted-foreground">
-                ${relayerStatus.chains.sepolia.balanceUSD.toFixed(2)}
+                ${relayerStatus.chains.sepolia.balanceUSD?.toFixed(2) || '0.00'}
               </div>
             )}
           </div>

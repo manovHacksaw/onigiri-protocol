@@ -13,9 +13,9 @@ module.exports = {
     },
   },
   networks: {
-    u2u: {
-      url: process.env.U2U_RPC_URL || "https://rpc-mainnet.u2u.xyz",
-      chainId: 39,
+    monad: {
+      url: process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz",
+      chainId: 10143,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: "auto",
     },
@@ -32,15 +32,15 @@ module.exports = {
   etherscan: {
     apiKey: {
       sepolia: process.env.ETHERSCAN_API_KEY || "",
-      u2u: process.env.U2U_API_KEY || "",
+      monad: process.env.MONAD_API_KEY || "",
     },
     customChains: [
       {
-        network: "u2u",
-        chainId: 39,
+        network: "monad",
+        chainId: 10143,
         urls: {
-          apiURL: "https://u2uscan.xyz/api",
-          browserURL: "https://u2uscan.xyz"
+          apiURL: "https://testnet.monadexplorer.com/api",
+          browserURL: "https://testnet.monadexplorer.com"
         }
       }
     ]

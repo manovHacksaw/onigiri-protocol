@@ -7,7 +7,7 @@ import { ArrowDown, RefreshCw, Zap, ExternalLink } from "lucide-react"
 import { useState } from "react"
 import { useBridge } from "@/hooks/useBridge"
 import { useAccount, useConnect, useDisconnect } from "wagmi"
-import { AddU2UToMetaMask } from "./add-u2u-metamask"
+import { AddMonadToMetaMask } from "./add-monad-metamask"
 import { AddWETHToMetaMask } from "./add-weth-metamask"
 
 export function BridgeCard({ className }: { className?: string }) {
@@ -21,13 +21,13 @@ export function BridgeCard({ className }: { className?: string }) {
     txHash,
     mintTxHash,
     error,
-    isOnU2U,
+    isOnMonad,
     isOnSepolia,
     availableBalance,
     tokenSymbol,
     networkName,
     targetNetwork,
-    bridgeFromU2U,
+    bridgeFromMonad,
     bridgeFromSepolia,
   } = useBridge()
 
@@ -36,8 +36,8 @@ export function BridgeCard({ className }: { className?: string }) {
   const handleBridge = async () => {
     if (!fromAmount || !address) return
 
-    if (isOnU2U) {
-      await bridgeFromU2U(fromAmount)
+    if (isOnMonad) {
+      await bridgeFromMonad(fromAmount)
     } else if (isOnSepolia) {
       await bridgeFromSepolia(fromAmount)
     }
@@ -64,20 +64,20 @@ export function BridgeCard({ className }: { className?: string }) {
         <div className="p-8 text-center">
           <h2 className="text-xl font-semibold mb-4">Connect Wallet</h2>
           <p className="text-muted-foreground mb-6">
-            Connect your wallet to bridge ETH from Sepolia to WETH on U2U Solaris Mainnet
+            Connect your wallet to bridge ETH from Sepolia to WETH on Monad Testnet
           </p>
           <div className="space-y-3">
             <Button onClick={handleConnect} className="w-full">
               Connect Wallet
             </Button>
-            <AddU2UToMetaMask />
+            <AddMonadToMetaMask />
           </div>
         </div>
       </Card>
     )
   }
 
-  if (!isOnU2U && !isOnSepolia) {
+  if (!isOnMonad && !isOnSepolia) {
     return (
       <Card
         className={cn(
@@ -87,9 +87,9 @@ export function BridgeCard({ className }: { className?: string }) {
       >
         <div className="p-8 text-center">
           <h2 className="text-xl font-semibold mb-4">Wrong Network</h2>
-          <p className="text-muted-foreground mb-6">Please switch to Sepolia to bridge ETH to WETH on U2U Solaris Mainnet</p>
+          <p className="text-muted-foreground mb-6">Please switch to Sepolia to bridge ETH to WETH on Monad Testnet</p>
           <div className="space-y-3">
-            <AddU2UToMetaMask />
+            <AddMonadToMetaMask />
             <Button onClick={() => disconnect()} variant="outline">
               Disconnect
             </Button>
@@ -167,7 +167,7 @@ export function BridgeCard({ className }: { className?: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <div className="w-[120px] px-3 py-2 bg-secondary/30 border border-secondary rounded-lg text-sm text-center">
-              {isOnU2U ? "ETH" : "WETH"}
+              {isOnMonad ? "ETH" : "WETH"}
             </div>
             <div className="w-[120px] px-3 py-2 bg-secondary/30 border border-secondary rounded-lg text-sm text-center">
               {targetNetwork}
@@ -183,7 +183,7 @@ export function BridgeCard({ className }: { className?: string }) {
             </div>
             <div className="flex justify-between mt-1">
               <span className="text-muted-foreground">Estimated Time</span>
-              <span>{isOnU2U ? "1-2 minutes" : "2-5 minutes"}</span>
+              <span>{isOnMonad ? "1-2 minutes" : "2-5 minutes"}</span>
             </div>
           </div>
         )}
@@ -192,18 +192,18 @@ export function BridgeCard({ className }: { className?: string }) {
           <div className="mt-4 space-y-3">
             <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
               <p className="text-foreground">
-                <strong>Note:</strong> Bridge from Sepolia to U2U requires relayer processing. Your ETH will be sent to the bridge contract, and WETH will be minted on U2U Solaris.
+                <strong>Note:</strong> Bridge from Sepolia to Monad requires relayer processing. Your ETH will be sent to the bridge contract, and WETH will be minted on Monad Testnet.
               </p>
             </div>
             <AddWETHToMetaMask />
           </div>
         )}
 
-        {isOnU2U && (
+        {isOnMonad && (
           <div className="mt-4 space-y-3">
             <div className="p-3 rounded-lg bg-secondary/10 border border-border text-sm">
               <p className="text-foreground">
-                <strong>✨ Relayer Processing:</strong> When you bridge U2U, our relayer will process the transaction and deliver equivalent ETH tokens on
+                <strong>✨ Relayer Processing:</strong> When you bridge MON, our relayer will process the transaction and deliver equivalent ETH tokens on
                 Sepolia to the same address within 1-2 minutes.
               </p>
             </div>
@@ -242,7 +242,7 @@ export function BridgeCard({ className }: { className?: string }) {
         {isConfirmed && !mintTxHash && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>✅ Transaction Confirmed!</strong> {isOnU2U ? "U2U bridged successfully. Relayer processing will start shortly..." : "ETH transaction confirmed on Sepolia. WETH minting will start shortly..."}
+              <strong>✅ Transaction Confirmed!</strong> {isOnMonad ? "MON bridged successfully. Relayer processing will start shortly..." : "ETH transaction confirmed on Sepolia. WETH minting will start shortly..."}
             </p>
           </div>
         )}
@@ -250,7 +250,7 @@ export function BridgeCard({ className }: { className?: string }) {
         {isLoading && !isConfirmed && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>🔄 Processing...</strong> {isOnU2U ? "Bridging U2U to Sepolia..." : "Sending ETH to Sepolia bridge contract..."}
+              <strong>🔄 Processing...</strong> {isOnMonad ? "Bridging MON to Sepolia..." : "Sending ETH to Sepolia bridge contract..."}
             </p>
           </div>
         )}
@@ -258,16 +258,16 @@ export function BridgeCard({ className }: { className?: string }) {
         {mintTxHash && (
           <div className="mt-4 p-3 rounded-lg bg-secondary/10 border border-border text-sm">
             <p className="text-foreground">
-              <strong>✅ Bridge Complete!</strong> {isOnU2U ? "ETH tokens have been delivered via relayer." : "WETH tokens have been minted on U2U Solaris."}
+              <strong>✅ Bridge Complete!</strong> {isOnMonad ? "ETH tokens have been delivered via relayer." : "WETH tokens have been minted on Monad Testnet."}
             </p>
             <div className="mt-2">
               <a
-                href={isOnU2U ? `https://sepolia.etherscan.io/tx/${mintTxHash}` : `https://u2uscan.xyz/tx/${mintTxHash}`}
+                href={isOnMonad ? `https://sepolia.etherscan.io/tx/${mintTxHash}` : `https://testnet.monadexplorer.com/tx/${mintTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground/80 hover:text-foreground text-xs underline flex items-center gap-1"
               >
-                View {isOnU2U ? "Relayer" : "WETH Mint"} Transaction <ExternalLink className="size-3" />
+                View {isOnMonad ? "Relayer" : "WETH Mint"} Transaction <ExternalLink className="size-3" />
               </a>
             </div>
           </div>
@@ -281,7 +281,7 @@ export function BridgeCard({ className }: { className?: string }) {
             <code className="break-all text-xs">{txHash}</code>
             <div className="mt-2">
               <a
-                href={isOnU2U ? `https://u2uscan.xyz/tx/${txHash}` : `https://sepolia.etherscan.io/tx/${txHash}`}
+                href={isOnMonad ? `https://testnet.monadexplorer.com/tx/${txHash}` : `https://sepolia.etherscan.io/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground/80 hover:text-foreground text-xs underline flex items-center gap-1"

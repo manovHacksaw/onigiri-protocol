@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createWalletClient, createPublicClient, http, parseEther, formatEther } from "viem";
 import { sepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import { u2uSolaris } from "@/lib/config";
-import { U2U_BRIDGE_ABI } from "@/lib/contracts";
+import { monadTestnet } from "@/lib/config";
+import { MONAD_BRIDGE_ABI, MONAD_BRIDGE_ADDRESS } from "@/lib/contracts";
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL!;
-const U2U_RPC_URL = process.env.U2U_RPC_URL || "https://rpc-mainnet.u2u.xyz";
+const MONAD_RPC_URL = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "a1f488592e4701289c173203d6d4b1f7583d3be37d08bf39a58f2875d167e5e6";
 
 if (!SEPOLIA_RPC_URL || !PRIVATE_KEY) {
@@ -16,32 +16,39 @@ if (!SEPOLIA_RPC_URL || !PRIVATE_KEY) {
 // Price fetching function with fallbacks
 async function fetchTokenPrices() {
   try {
-    // Try to fetch U2U price from CoinGecko or similar API
-    const u2uResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=u2u&vs_currencies=usd');
-    const u2uData = await u2uResponse.json();
-    const u2uPrice = u2uData.u2u?.usd || 0.006144; // Fallback price
+    // Try to fetch MON price from CoinGecko or similar API
+    const monResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd');
+    const monData = await monResponse.json();
+    // Use a more reasonable fallback price for MON (assuming it's a testnet token)
+    const monPrice = monData.monad?.usd || 8; // Use 8 as fallback price as requested
 
     // Try to fetch ETH price
     const ethResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
     const ethData = await ethResponse.json();
-    const ethPrice = ethData.ethereum?.usd || 4327.95; // Fallback price
+    const ethPrice = ethData.ethereum?.usd || 4100; // Use 4100 as fallback price as requested
 
-    return { u2uPrice, ethPrice };
+    // Validate prices are valid numbers
+    if (isNaN(monPrice) || isNaN(ethPrice) || monPrice <= 0 || ethPrice <= 0) {
+      console.warn('Invalid prices received, using fallbacks');
+      return { monadPrice: 8, ethPrice: 4100 };
+    }
+    
+    return { monadPrice: monPrice, ethPrice };
   } catch (error) {
     console.warn('Failed to fetch prices, using fallbacks:', error);
-    return { u2uPrice: 0.006144, ethPrice: 4327.95 };
+    return { monadPrice: 8, ethPrice: 4100 };
   }
 }
 
 // Check liquidity on both chains
-async function checkLiquidity(account: { address: `0x${string}` }, u2uAmount: bigint, ethAmount: bigint) {
+async function checkLiquidity(account: { address: `0x${string}` }, monadAmount: bigint, ethAmount: bigint) {
   try {
-    // Check U2U balance
-    const u2uClient = createPublicClient({
-      chain: u2uSolaris,
-      transport: http(U2U_RPC_URL),
+    // Check MON balance
+    const monadClient = createPublicClient({
+      chain: monadTestnet,
+      transport: http(MONAD_RPC_URL),
     });
-    const u2uBalance = await u2uClient.getBalance({ address: account.address });
+    const monadBalance = await monadClient.getBalance({ address: account.address });
     
     // Check Sepolia ETH balance
     const sepoliaClient = createPublicClient({
@@ -50,21 +57,21 @@ async function checkLiquidity(account: { address: `0x${string}` }, u2uAmount: bi
     });
     const ethBalance = await sepoliaClient.getBalance({ address: account.address });
 
-    const insufficientU2U = u2uBalance < u2uAmount;
+    const insufficientMON = monadBalance < monadAmount;
     const insufficientETH = ethBalance < ethAmount;
 
     return {
-      insufficientU2U,
+      insufficientMON,
       insufficientETH,
-      u2uBalance: u2uBalance.toString(),
+      monadBalance: monadBalance.toString(),
       ethBalance: ethBalance.toString(),
     };
   } catch (error) {
     console.error('Error checking liquidity:', error);
     return {
-      insufficientU2U: true,
+      insufficientMON: true,
       insufficientETH: true,
-      u2uBalance: '0',
+      monadBalance: '0',
       ethBalance: '0',
     };
   }
@@ -72,8 +79,8 @@ async function checkLiquidity(account: { address: `0x${string}` }, u2uAmount: bi
 
 export async function POST(request: NextRequest) {
   try {
-    const { recipient, amount, transferId, action, u2uTxHash, sepoliaTxHash } = await request.json();
-    console.log('Relayer API called with:', { recipient, amount, action, u2uTxHash, sepoliaTxHash, transferId });
+    const { recipient, amount, transferId, action, monadTxHash, sepoliaTxHash } = await request.json();
+    console.log('Relayer API called:', { action, amount });
 
     if (!recipient || !amount) {
       return NextResponse.json(
@@ -86,11 +93,11 @@ export async function POST(request: NextRequest) {
     const privateKey = PRIVATE_KEY.startsWith('0x') ? PRIVATE_KEY : `0x${PRIVATE_KEY}`;
     const account = privateKeyToAccount(privateKey as `0x${string}`);
     
-    // U2U wallet client
-    const u2uWalletClient = createWalletClient({
+    // MON wallet client
+    const monadWalletClient = createWalletClient({
       account,
-      chain: u2uSolaris,
-      transport: http(U2U_RPC_URL),
+      chain: monadTestnet,
+      transport: http(MONAD_RPC_URL),
     });
 
     // Sepolia wallet client
@@ -101,9 +108,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Create public clients for waiting for receipts
-    const u2uPublicClient = createPublicClient({
-      chain: u2uSolaris,
-      transport: http(U2U_RPC_URL),
+    const monadPublicClient = createPublicClient({
+      chain: monadTestnet,
+      transport: http(MONAD_RPC_URL),
     });
 
     const sepoliaPublicClient = createPublicClient({
@@ -111,55 +118,72 @@ export async function POST(request: NextRequest) {
       transport: http(SEPOLIA_RPC_URL),
     });
 
-    // Handle U2U bridge transaction
-    if (action === 'bridge' && u2uTxHash) {
-      console.log(`Processing U2U bridge: ${amount} U2U for ${recipient}, U2U tx: ${u2uTxHash}`);
+    // Handle MON bridge transaction
+    if (action === 'bridge' && monadTxHash) {
+      console.log(`Processing MON bridge: ${amount} MON for ${recipient}`);
       
-      // Validate U2U transaction first
+      // Validate MON transaction first
       try {
-        const u2uReceipt = await u2uPublicClient.getTransactionReceipt({ hash: u2uTxHash as `0x${string}` });
-        if (!u2uReceipt || u2uReceipt.status !== 'success') {
+        const monadReceipt = await monadPublicClient.getTransactionReceipt({ hash: monadTxHash as `0x${string}` });
+        if (!monadReceipt || monadReceipt.status !== 'success') {
           return NextResponse.json(
-            { success: false, error: "U2U transaction not confirmed or failed" },
+            { success: false, error: "MON transaction not confirmed or failed" },
             { status: 400 }
           );
         }
-        console.log(`U2U transaction confirmed: ${u2uTxHash}`);
+        console.log('MON transaction confirmed');
       } catch {
         return NextResponse.json(
-          { success: false, error: "Failed to validate U2U transaction" },
+          { success: false, error: "Failed to validate MON transaction" },
           { status: 400 }
         );
       }
 
       // Fetch current prices
-      const { u2uPrice, ethPrice } = await fetchTokenPrices();
-      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
-
+      const { monadPrice, ethPrice } = await fetchTokenPrices();
       // Calculate equivalent ETH amount based on current market value
-      const u2uAmountUSD = parseFloat(amount) * u2uPrice;
-      const equivalentEthAmount = u2uAmountUSD / ethPrice;
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid amount provided" },
+          { status: 400 }
+        );
+      }
+      
+      const monadAmountUSD = amountNum * monadPrice;
+      const equivalentEthAmount = monadAmountUSD / ethPrice;
+      
+      // Validate the calculated amount
+      if (isNaN(equivalentEthAmount) || equivalentEthAmount <= 0) {
+        console.error(`Invalid conversion calculation - amountNum: ${amountNum}, monadPrice: ${monadPrice}, ethPrice: ${ethPrice}, monadAmountUSD: ${monadAmountUSD}, equivalentEthAmount: ${equivalentEthAmount}`);
+        return NextResponse.json(
+          { success: false, error: "Invalid conversion amount calculated" },
+          { status: 400 }
+        );
+      }
       
       // Ensure the amount is in proper decimal format (not scientific notation)
       const ethAmountString = equivalentEthAmount.toFixed(18); // Use 18 decimals for precision
       const ethAmountWei = parseEther(ethAmountString);
 
-      console.log(`Converting ${amount} U2U ($${u2uAmountUSD.toFixed(2)}) to ${ethAmountString} ETH`);
+      console.log(`Converting ${amount} MON to ${ethAmountString} ETH`);
 
       // Check liquidity before proceeding
-      // Note: amount is in U2U units, so we need to convert it to wei for U2U
-      const u2uAmountWei = parseEther(amount); // This is correct for U2U amount
-      const liquidityCheck = await checkLiquidity(account, u2uAmountWei, ethAmountWei);
+      // Note: amount is in MON units, so we need to convert it to wei for MON
+      // Convert to fixed decimal notation to avoid scientific notation issues
+      const monadAmountString = amountNum.toFixed(18);
+      const monadAmountWei = parseEther(monadAmountString); // This is correct for MON amount
+      const liquidityCheck = await checkLiquidity(account, monadAmountWei, ethAmountWei);
       
-      if (liquidityCheck.insufficientU2U) {
+      if (liquidityCheck.insufficientMON) {
         return NextResponse.json(
           { 
             success: false, 
-            error: "Bridge temporarily unavailable: insufficient liquidity on U2U.",
+            error: "Bridge temporarily unavailable: insufficient liquidity on MON.",
             details: {
               required: amount,
-              available: liquidityCheck.u2uBalance,
-              chain: "U2U"
+              available: liquidityCheck.monadBalance,
+              chain: "MON"
             }
           },
           { status: 503 }
@@ -189,7 +213,7 @@ export async function POST(request: NextRequest) {
 
       const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       
-      console.log(`Bridge completed: ${equivalentEthAmount} ETH sent to ${recipient} on Sepolia`);
+      console.log(`Bridge completed: ${equivalentEthAmount} ETH sent to ${recipient}`);
 
       return NextResponse.json({
         success: true,
@@ -200,18 +224,18 @@ export async function POST(request: NextRequest) {
           gasUsed: receipt.gasUsed.toString(),
           status: receipt.status,
         },
-        u2uTxHash,
-        u2uAmount: amount,
+        monadTxHash,
+        monadAmount: amount,
         ethAmount: equivalentEthAmount.toString(),
-        u2uPrice,
+        monadPrice,
         ethPrice,
-        message: `Bridge successful: ${amount} U2U → ${ethAmountString} ETH`,
+        message: `Bridge successful: ${amount} MON → ${ethAmountString} ETH`,
       });
     }
 
     if (action === 'bridge-eth-to-weth') {
-      // Handle bridge: ETH (Sepolia) → WETH (U2U)
-      console.log(`✅ Processing bridge: ${amount} ETH to WETH for ${recipient}, transferId: ${transferId}`);
+      // Handle bridge: ETH (Sepolia) → WETH (MON)
+      console.log(`Processing bridge: ${amount} ETH to WETH for ${recipient}`);
       
       // Note: Allow relayer to bridge for itself (valid use case)
       
@@ -225,7 +249,7 @@ export async function POST(request: NextRequest) {
               { status: 400 }
             );
           }
-          console.log(`✅ Sepolia transaction confirmed: ${sepoliaTxHash}`);
+          console.log('Sepolia transaction confirmed');
         } catch {
           return NextResponse.json(
             { success: false, error: "Failed to validate Sepolia transaction" },
@@ -241,47 +265,54 @@ export async function POST(request: NextRequest) {
       const cleanTransferId = finalTransferId.startsWith('0x') ? finalTransferId.slice(2) : finalTransferId;
       const paddedTransferId = `0x${cleanTransferId.padStart(64, '0').slice(0, 64)}`;
       
-      console.log(`Using transferId: ${paddedTransferId}`);
       
-      // For ETH → WETH bridge, we mint WETH on U2U
+      // For ETH → WETH bridge, we mint WETH on MON
       // The amount is already in ETH, so we mint the same amount as WETH
-      const wethAmount = parseEther(amount);
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid amount provided" },
+          { status: 400 }
+        );
+      }
+      // Convert to fixed decimal notation to avoid scientific notation issues
+      const wethAmountString = amountNum.toFixed(18);
+      const wethAmount = parseEther(wethAmountString);
       
-      console.log(`Minting ${amount} WETH for ${recipient}`);
+      console.log(`Minting ${amount} WETH`);
       
-      // Check if we have enough U2U for gas fees
-      const u2uBalance = await u2uPublicClient.getBalance({ address: account.address });
-      const minU2UForGas = parseEther("0.01"); // Minimum U2U for gas
+      // Check if we have enough MON for gas fees
+      const monadBalance = await monadPublicClient.getBalance({ address: account.address });
+      const minMONForGas = parseEther("0.01"); // Minimum MON for gas
       
-      if (u2uBalance < minU2UForGas) {
+      if (monadBalance < minMONForGas) {
         return NextResponse.json(
           { 
             success: false, 
-            error: "Bridge temporarily unavailable: insufficient U2U for gas fees.",
+            error: "Bridge temporarily unavailable: insufficient MON for gas fees.",
             details: {
-              required: formatEther(minU2UForGas),
-              available: formatEther(u2uBalance),
-              chain: "U2U"
+              required: formatEther(minMONForGas),
+              available: formatEther(monadBalance),
+              chain: "MON"
             }
           },
           { status: 503 }
         );
       }
       
-      // Call the U2U bridge contract to mint WETH
-      const bridgeAddress = "0x20c452438968C942729D70035fF2dD86481F6EaB"; // Deployed U2U Bridge address
+      // Call the MON bridge contract to mint WETH
       
       try {
-        const txHash = await u2uWalletClient.writeContract({
-          address: bridgeAddress as `0x${string}`,
-          abi: U2U_BRIDGE_ABI.abi,
+        const txHash = await monadWalletClient.writeContract({
+          address: MONAD_BRIDGE_ADDRESS as `0x${string}`,
+          abi: MONAD_BRIDGE_ABI.abi,
           functionName: "mintWETH",
           args: [recipient as `0x${string}`, wethAmount, paddedTransferId as `0x${string}`],
         });
 
-        const receipt = await u2uPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+        const receipt = await monadPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
         
-        console.log(`WETH minted for bridge: ${txHash}`);
+        console.log(`WETH minted: ${txHash}`);
 
         return NextResponse.json({
           success: true,
@@ -301,7 +332,7 @@ export async function POST(request: NextRequest) {
             success: false, 
             error: `Bridge minting failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
             details: {
-              bridgeAddress,
+              bridgeAddress: MONAD_BRIDGE_ADDRESS,
               recipient,
               amount,
               transferId
@@ -311,24 +342,42 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (action === 'swap') {
-      // Handle swap: U2U (U2U Solaris) → ETH (Sepolia)
-      console.log(`✅ Processing swap: ${amount} U2U to ETH for ${recipient}, transferId: ${transferId}`);
+      // Handle swap: MON (MON Solaris) → ETH (Sepolia)
+      console.log(`Processing swap: ${amount} MON to ETH`);
       
-      // Fetch current prices and convert U2U to ETH
-      const { u2uPrice, ethPrice } = await fetchTokenPrices();
-      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
+      // Fetch current prices and convert MON to ETH
+      const { monadPrice, ethPrice } = await fetchTokenPrices();
       
-      const u2uAmountUSD = parseFloat(amount) * u2uPrice;
-      const equivalentEthAmount = u2uAmountUSD / ethPrice;
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid amount provided" },
+          { status: 400 }
+        );
+      }
+      
+      const monadAmountUSD = amountNum * monadPrice;
+      const equivalentEthAmount = monadAmountUSD / ethPrice;
+      
+      // Validate the calculated amount
+      if (isNaN(equivalentEthAmount) || equivalentEthAmount <= 0) {
+        console.error(`Invalid swap conversion calculation - amountNum: ${amountNum}, monadPrice: ${monadPrice}, ethPrice: ${ethPrice}, monadAmountUSD: ${monadAmountUSD}, equivalentEthAmount: ${equivalentEthAmount}`);
+        return NextResponse.json(
+          { success: false, error: "Invalid conversion amount calculated" },
+          { status: 400 }
+        );
+      }
       
       // Ensure the amount is in proper decimal format (not scientific notation)
       const ethAmountString = equivalentEthAmount.toFixed(18); // Use 18 decimals for precision
       const ethAmountWei = parseEther(ethAmountString);
       
-      console.log(`Converting ${amount} U2U ($${u2uAmountUSD.toFixed(2)}) to ${ethAmountString} ETH`);
+      console.log(`Converting ${amount} MON to ${ethAmountString} ETH`);
       
       // Check liquidity before proceeding
-      const liquidityCheck = await checkLiquidity(account, parseEther(amount), ethAmountWei);
+      // Convert to fixed decimal notation to avoid scientific notation issues
+      const amountString = amountNum.toFixed(18);
+      const liquidityCheck = await checkLiquidity(account, parseEther(amountString), ethAmountWei);
       
       if (liquidityCheck.insufficientETH) {
         return NextResponse.json(
@@ -353,7 +402,7 @@ export async function POST(request: NextRequest) {
 
       const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       
-      console.log(`ETH sent for swap: ${txHash}`);
+      console.log(`ETH sent: ${txHash}`);
 
       return NextResponse.json({
         success: true,
@@ -364,52 +413,68 @@ export async function POST(request: NextRequest) {
           gasUsed: receipt.gasUsed.toString(),
           status: receipt.status,
         },
-        message: `Swap processed: ${ethAmountString} ETH sent to ${recipient} (from ${amount} U2U)`,
+        message: `Swap processed: ${ethAmountString} ETH sent to ${recipient} (from ${amount} MON)`,
       });
-    } else if (action === 'swap-eth-to-u2u') {
-      // Handle swap: ETH (Sepolia) → U2U (U2U Solaris)
-      console.log(`✅ Processing swap: ${amount} ETH to U2U for ${recipient}, transferId: ${transferId}`);
+    } else if (action === 'swap-eth-to-monad') {
+      // Handle swap: ETH (Sepolia) → MON (MON Solaris)
+      console.log(`Processing swap: ${amount} ETH to MON`);
       
-      // Fetch current prices and convert ETH to U2U
-      const { u2uPrice, ethPrice } = await fetchTokenPrices();
-      console.log(`Current prices - U2U: $${u2uPrice}, ETH: $${ethPrice}`);
+      // Fetch current prices and convert ETH to MON
+      const { monadPrice, ethPrice } = await fetchTokenPrices();
       
-      const ethAmountUSD = parseFloat(amount) * ethPrice;
-      const equivalentU2UAmount = ethAmountUSD / u2uPrice;
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid amount provided" },
+          { status: 400 }
+        );
+      }
+      const ethAmountUSD = amountNum * ethPrice;
+      const equivalentMONAmount = ethAmountUSD / monadPrice;
+      
+      // Validate the calculated amount
+      if (isNaN(equivalentMONAmount) || equivalentMONAmount <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid conversion amount calculated" },
+          { status: 400 }
+        );
+      }
       
       // Ensure the amount is in proper decimal format (not scientific notation)
-      const u2uAmountString = equivalentU2UAmount.toFixed(18); // Use 18 decimals for precision
-      const u2uAmountWei = parseEther(u2uAmountString);
+      const monadAmountString = equivalentMONAmount.toFixed(18); // Use 18 decimals for precision
+      const monadAmountWei = parseEther(monadAmountString);
       
-      console.log(`Converting ${amount} ETH ($${ethAmountUSD.toFixed(2)}) to ${u2uAmountString} U2U`);
+      console.log(`Converting ${amount} ETH to ${monadAmountString} MON`);
       
       // Check liquidity before proceeding
-      const liquidityCheck = await checkLiquidity(account, u2uAmountWei, parseEther(amount));
+      // Convert to fixed decimal notation to avoid scientific notation issues
+      const amountString = amountNum.toFixed(18);
+      const liquidityCheck = await checkLiquidity(account, monadAmountWei, parseEther(amountString));
       
-      if (liquidityCheck.insufficientU2U) {
+      if (liquidityCheck.insufficientMON) {
         return NextResponse.json(
           { 
             success: false, 
-            error: "Swap temporarily unavailable: insufficient liquidity on U2U.",
+            error: "Swap temporarily unavailable: insufficient liquidity on MON.",
             details: {
-              required: equivalentU2UAmount.toString(),
-              available: liquidityCheck.u2uBalance,
-              chain: "U2U"
+              required: equivalentMONAmount.toString(),
+              available: liquidityCheck.monadBalance,
+              chain: "MON"
             }
           },
           { status: 503 }
         );
       }
       
-      // Send equivalent U2U to the recipient
-      const txHash = await u2uWalletClient.sendTransaction({
+      // Send equivalent MON to the recipient
+      const txHash = await monadWalletClient.sendTransaction({
         to: recipient as `0x${string}`,
-        value: u2uAmountWei,
+        value: monadAmountWei,
       });
 
-      const receipt = await u2uPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      const receipt = await monadPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       
-      console.log(`U2U sent for swap: ${txHash}`);
+      console.log(`MON sent: ${txHash}`);
 
       return NextResponse.json({
         success: true,
@@ -420,14 +485,21 @@ export async function POST(request: NextRequest) {
           gasUsed: receipt.gasUsed.toString(),
           status: receipt.status,
         },
-        message: `Swap processed: ${u2uAmountString} U2U sent to ${recipient} (from ${amount} ETH)`,
+        message: `Swap processed: ${monadAmountString} MON sent to ${recipient} (from ${amount} ETH)`,
       });
     } else {
       // Default behavior: send ETH directly to recipient
-      console.log(`❌ Using default behavior - action: ${action}, transferId: ${transferId}`);
+      console.log(`Using default behavior - action: ${action}`);
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        return NextResponse.json(
+          { success: false, error: "Invalid amount provided" },
+          { status: 400 }
+        );
+      }
       const txHash = await sepoliaWalletClient.sendTransaction({
         to: recipient as `0x${string}`,
-        value: parseEther(amount.toString()),
+        value: parseEther(amountNum.toFixed(18)),
       });
 
       const receipt = await sepoliaPublicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
@@ -462,7 +534,7 @@ export async function GET() {
     console.log('Relayer GET endpoint called');
     console.log('Environment check:', { 
       hasSepoliaRpc: !!SEPOLIA_RPC_URL, 
-      hasU2URpc: !!U2U_RPC_URL, 
+      hasMONRpc: !!MONAD_RPC_URL, 
       hasPrivateKey: !!PRIVATE_KEY 
     });
     
@@ -470,12 +542,12 @@ export async function GET() {
     const account = privateKeyToAccount(privateKey as `0x${string}`);
     console.log('Relayer account:', account.address);
 
-    // Check U2U balance
-    const u2uClient = createPublicClient({
-      chain: u2uSolaris,
-      transport: http(U2U_RPC_URL),
+    // Check MON balance
+    const monadClient = createPublicClient({
+      chain: monadTestnet,
+      transport: http(MONAD_RPC_URL),
     });
-    const u2uBalance = await u2uClient.getBalance({ address: account.address });
+    const monadBalance = await monadClient.getBalance({ address: account.address });
 
     // Check Sepolia balance
     const sepoliaClient = createPublicClient({
@@ -485,18 +557,18 @@ export async function GET() {
     const sepoliaBalance = await sepoliaClient.getBalance({ address: account.address });
 
     // Fetch current prices
-    const { u2uPrice, ethPrice } = await fetchTokenPrices();
+    const { monadPrice, ethPrice } = await fetchTokenPrices();
 
     return NextResponse.json({
       success: true,
       relayerAddress: account.address,
       chains: {
-        u2u: {
-          chainId: u2uSolaris.id,
-          name: u2uSolaris.name,
-          balance: parseFloat(u2uBalance.toString()) / 1e18,
-          balanceUSD: (parseFloat(u2uBalance.toString()) / 1e18) * u2uPrice,
-          symbol: u2uSolaris.nativeCurrency.symbol,
+        monad: {
+          chainId: monadTestnet.id,
+          name: monadTestnet.name,
+          balance: parseFloat(monadBalance.toString()) / 1e18,
+          balanceUSD: (parseFloat(monadBalance.toString()) / 1e18) * monadPrice,
+          symbol: monadTestnet.nativeCurrency.symbol,
         },
         sepolia: {
           chainId: sepolia.id,
@@ -507,7 +579,7 @@ export async function GET() {
         },
       },
       prices: {
-        u2u: u2uPrice,
+        monad: monadPrice,
         eth: ethPrice,
       },
       status: "operational",

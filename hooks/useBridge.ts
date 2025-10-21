@@ -9,12 +9,12 @@ import {
 } from "wagmi";
 import { parseEther, formatEther } from "viem";
 import {
-  U2U_BRIDGE_ADDRESS,
+  MONAD_BRIDGE_ADDRESS,
   SEPOLIA_BRIDGE_ADDRESS,
-  U2U_BRIDGE_ABI,
+  MONAD_BRIDGE_ABI,
   SEPOLIA_BRIDGE_ABI,
 } from "@/lib/contracts";
-import { u2uSolaris, sepolia } from "@/lib/config";
+import { monadTestnet, sepolia } from "@/lib/config";
 
 export function useBridge() {
   const { address, chainId } = useAccount();
@@ -46,14 +46,14 @@ export function useBridge() {
   useEffect(() => {
     const triggerRelayerMinting = async () => {
       if (isConfirmed && pendingBridgeAmount && address && hash && !relayerProcessing) {
-        console.log("Sepolia transaction confirmed, triggering WETH minting...");
+        console.log("Sepolia transaction confirmed, triggering WETH minting");
         setRelayerProcessing(true);
         
         try {
           // Use the actual transaction hash as transferId to ensure uniqueness
           const transferId = hash;
 
-          // Call relayer to mint WETH on U2U
+          // Call relayer to mint WETH on Monad
           const response = await fetch("/api/relayer", {
             method: "POST",
             headers: {
@@ -71,7 +71,7 @@ export function useBridge() {
           const bridgeResult = await response.json();
 
           if (bridgeResult.success) {
-            console.log("WETH bridge processed successfully:", bridgeResult.txHash);
+            console.log("WETH bridge processed successfully");
             setMintTxHash(bridgeResult.txHash);
             setRelayerError(null);
           } else {
@@ -92,10 +92,10 @@ export function useBridge() {
     triggerRelayerMinting();
   }, [isConfirmed, pendingBridgeAmount, address, hash, relayerProcessing]);
 
-  const isOnU2U = chainId === u2uSolaris.id;
+  const isOnMonad = chainId === monadTestnet.id;
   const isOnSepolia = chainId === sepolia.id;
 
-  const bridgeFromU2U = async (amount: string) => {
+  const bridgeFromMonad = async (amount: string) => {
     if (!amount || !address) return;
 
     setIsLoading(true);
@@ -103,14 +103,14 @@ export function useBridge() {
     setMintTxHash(null);
 
     try {
-      // First, send U2U to the bridge contract on U2U Solaris
+      // First, send MON to the bridge contract on Monad Testnet
       writeContract({
-        address: U2U_BRIDGE_ADDRESS,
-        abi: U2U_BRIDGE_ABI.abi,
+        address: MONAD_BRIDGE_ADDRESS,
+        abi: MONAD_BRIDGE_ABI.abi,
         functionName: "bridge",
         args: [11155111, address], // destinationChainId (Sepolia = 11155111), recipient
-        chainId: u2uSolaris.id,
-        value: parseEther(amount), // Send native U2U as msg.value
+        chainId: monadTestnet.id,
+        value: parseEther(amount), // Send native MON as msg.value
       });
 
       // Wait a moment for the transaction to be mined
@@ -126,14 +126,14 @@ export function useBridge() {
           recipient: address,
           amount: amount,
           action: "bridge",
-          u2uTxHash: hash, // The transaction hash from the U2U bridge
+          monadTxHash: hash, // The transaction hash from the Monad bridge
         }),
       });
 
       const bridgeResult = await response.json();
 
       if (bridgeResult.success) {
-        console.log("Bridge processed successfully:", bridgeResult.txHash);
+        console.log("Bridge processed successfully");
         setMintTxHash(bridgeResult.txHash);
         setRelayerError(null);
       } else {
@@ -169,7 +169,7 @@ export function useBridge() {
       });
 
       // The useEffect will handle the relayer call after transaction confirmation
-      console.log("ETH sent to Sepolia bridge, waiting for confirmation...");
+      console.log("ETH sent to Sepolia bridge, waiting for confirmation");
     } catch (err) {
       console.error("WETH bridge transaction failed:", err);
       setPendingBridgeAmount(null); // Clear pending amount on error
@@ -178,7 +178,7 @@ export function useBridge() {
   };
 
   const getAvailableBalance = () => {
-    if (isOnU2U) {
+    if (isOnMonad) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0";
     } else if (isOnSepolia) {
       return sepoliaBalance ? formatEther(sepoliaBalance.value) : "0";
@@ -187,20 +187,20 @@ export function useBridge() {
   };
 
   const getTokenSymbol = () => {
-    if (isOnU2U) return "U2U";
+    if (isOnMonad) return "MON";
     if (isOnSepolia) return "ETH";
     return "";
   };
 
   const getNetworkName = () => {
-    if (isOnU2U) return "U2U Solaris Mainnet";
-    if (isOnSepolia) return "Sepolia";
+    if (isOnMonad) return "Monad Testnet";
+    if (isOnSepolia) return "Sepolia Testnet";
     return "Unknown";
   };
 
   const getTargetNetwork = () => {
-    if (isOnU2U) return "Sepolia";
-    if (isOnSepolia) return "U2U";
+    if (isOnMonad) return "Sepolia Testnet";
+    if (isOnSepolia) return "Monad Testnet";
     return "";
   };
 
@@ -212,13 +212,13 @@ export function useBridge() {
     txHash: hash,
     mintTxHash,
     error: error || relayerError,
-    isOnU2U,
+    isOnMonad,
     isOnSepolia,
     availableBalance: getAvailableBalance(),
     tokenSymbol: getTokenSymbol(),
     networkName: getNetworkName(),
     targetNetwork: getTargetNetwork(),
-    bridgeFromU2U,
+    bridgeFromMonad,
     bridgeFromSepolia,
   };
 }

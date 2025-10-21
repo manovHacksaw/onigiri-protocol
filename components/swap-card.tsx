@@ -11,7 +11,7 @@ import { useCrossChainSwap } from "@/hooks/useCrossChainSwap"
 import { useRelayerStatus } from "@/hooks/useRelayerStatus"
 import { getChainNativeToken, getChainName } from "@/lib/priceApi"
 import { formatEther } from "viem"
-import { WETH_U2U_ADDRESS } from "@/lib/contracts"
+import { WETH_MONAD_ADDRESS } from "@/lib/contracts"
 import { TransactionModal } from "@/components/ui/transaction-modal"
 
 export function SwapCard({ className }: { className?: string }) {
@@ -39,7 +39,7 @@ export function SwapCard({ className }: { className?: string }) {
   const [buyAmount, setBuyAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [swapError, setSwapError] = useState<string | null>(null)
-  const [swapResult, setSwapResult] = useState<{u2uTx: string | undefined, sepoliaTx: string | undefined} | null>(null)
+  const [swapResult, setSwapResult] = useState<{monadTx: string | undefined, sepoliaTx: string | undefined} | null>(null)
 
   // Fetch balances
   const { data: nativeBalance } = useBalance({
@@ -47,7 +47,7 @@ export function SwapCard({ className }: { className?: string }) {
   })
 
   const { data: wETHBalance } = useReadContract({
-    address: WETH_U2U_ADDRESS,
+    address: WETH_MONAD_ADDRESS,
     abi: [{
       inputs: [{ name: 'account', type: 'address' }],
       name: 'balanceOf',
@@ -57,16 +57,16 @@ export function SwapCard({ className }: { className?: string }) {
     }],
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: 39, // U2U
+    chainId: 10143, // Monad
   })
 
   // Get available balance for the selected sell token
   const getAvailableBalance = () => {
     if (sellToken === "ETH" && chainId === 11155111) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0"
-    } else if (sellToken === "U2U" && chainId === 39) {
+    } else if (sellToken === "MON" && chainId === 10143) {
       return nativeBalance ? formatEther(nativeBalance.value) : "0"
-    } else if (sellToken === "WETH" && chainId === 39) {
+    } else if (sellToken === "WETH" && chainId === 10143) {
       return wETHBalance ? formatEther(wETHBalance as bigint) : "0"
     }
     return "0"
@@ -81,8 +81,8 @@ export function SwapCard({ className }: { className?: string }) {
 
     // Determine which chain's liquidity to check based on the buyToken (what user will receive)
     let targetChain;
-    if (buyToken === 'U2U') {
-      targetChain = relayerStatus.chains.u2u; // Check U2U Solaris balance
+    if (buyToken === 'MON') {
+      targetChain = relayerStatus.chains.monad; // Check Monad Testnet balance
     } else if (buyToken === 'ETH') {
       targetChain = relayerStatus.chains.sepolia; // Check Sepolia balance
     } else {
@@ -119,8 +119,8 @@ export function SwapCard({ className }: { className?: string }) {
   const getChainValidation = () => {
     if (!sellToken || !chainId) return { isValid: true, message: "" }
     
-    const requiredChainId = sellToken === 'ETH' ? 11155111 : 39; // Sepolia for ETH, U2U for U2U
-    const requiredChainName = sellToken === 'ETH' ? 'Sepolia Testnet' : 'U2U Solaris Mainnet';
+    const requiredChainId = sellToken === 'ETH' ? 11155111 : 10143; // Sepolia for ETH, Monad for MON
+    const requiredChainName = sellToken === 'ETH' ? 'Sepolia Testnet' : 'Monad Testnet';
     
     if (chainId !== requiredChainId) {
       return {
@@ -153,12 +153,12 @@ export function SwapCard({ className }: { className?: string }) {
     if (!chainId) return;
     
     const nativeToken = getChainNativeToken(chainId)
-    if (chainId === 39) { // U2U Solaris
+    if (chainId === 10143) { // Monad Testnet
       setSellToken(nativeToken)
       setBuyToken("ETH") // Default to ETH for Sepolia
     } else if (chainId === 11155111) { // Sepolia
       setSellToken(nativeToken)
-      setBuyToken("U2U") // Default to U2U for U2U Solaris
+      setBuyToken("MON") // Default to MON for Monad Testnet
     }
   }, [chainId])
 
@@ -213,9 +213,9 @@ export function SwapCard({ className }: { className?: string }) {
         
         console.log('Swap result:', result);
         
-        if (result && result.u2uTx && result.sepoliaTx) {
+        if (result && result.monadTx && result.sepoliaTx) {
           setSwapResult({
-            u2uTx: result.u2uTx,
+            monadTx: result.monadTx,
             sepoliaTx: result.sepoliaTx
           })
         }
@@ -264,7 +264,7 @@ export function SwapCard({ className }: { className?: string }) {
             <div>
               <h2 className="text-xl font-semibold">Cross-Chain Swap</h2>
               <p className="text-sm text-muted-foreground">
-                {chainId ? `${getChainName(chainId)} → ${getChainName(chainId === 39 ? 11155111 : 39)}` : 'Select Network'}
+                {chainId ? `${getChainName(chainId)} → ${getChainName(chainId === 10143 ? 11155111 : 10143)}` : 'Select Network'}
               </p>
             </div>
             <Button
@@ -293,7 +293,7 @@ export function SwapCard({ className }: { className?: string }) {
                   <ChevronDown className="size-4 opacity-70" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="U2U">U2U (U2U Solaris)</SelectItem>
+                  <SelectItem value="MON">MON (Monad Testnet)</SelectItem>
                   <SelectItem value="ETH">ETH (Sepolia)</SelectItem>
                   <SelectItem value="wRBTC">wRBTC (Sepolia)</SelectItem>
                 </SelectContent>
@@ -335,7 +335,7 @@ export function SwapCard({ className }: { className?: string }) {
                 <ChevronDown className="size-4 opacity-70" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="U2U">U2U (U2U Solaris)</SelectItem>
+                <SelectItem value="MON">MON (Monad Testnet)</SelectItem>
                 <SelectItem value="ETH">ETH (Sepolia)</SelectItem>
                 <SelectItem value="wRBTC">wRBTC (Sepolia)</SelectItem>
               </SelectContent>

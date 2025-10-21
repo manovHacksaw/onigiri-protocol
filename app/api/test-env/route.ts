@@ -4,10 +4,10 @@ export async function GET() {
   try {
     const envCheck = {
       hasSepoliaRpc: !!process.env.SEPOLIA_RPC_URL,
-      hasU2URpc: !!process.env.U2U_RPC_URL,
+      hasMonadRpc: !!process.env.MONAD_RPC_URL,
       hasPrivateKey: !!process.env.PRIVATE_KEY,
       sepoliaRpcUrl: process.env.SEPOLIA_RPC_URL ? 'Set' : 'Missing',
-      u2uRpcUrl: process.env.U2U_RPC_URL ? 'Set' : 'Missing',
+      monadRpcUrl: process.env.MONAD_RPC_URL ? 'Set' : 'Missing',
       privateKeyLength: process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY.length : 0,
     };
 

@@ -5,7 +5,7 @@ interface RelayerStatus {
   success: boolean
   relayerAddress: string
   chains: {
-    u2u: {
+    monad: {
       chainId: number
       name: string
       balance: number
@@ -21,7 +21,7 @@ interface RelayerStatus {
     }
   }
   prices: {
-    u2u: number
+    monad: number
     eth: number
   }
   status: string
@@ -37,7 +37,7 @@ export function useRelayerStatus() {
       setIsLoading(true)
       setError(null)
       
-      const response = await fetch('/api/test-relayer')
+      const response = await fetch('/api/relayer')
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -46,7 +46,7 @@ export function useRelayerStatus() {
       const data = await response.json()
       console.log('Relayer status response:', data)
       
-      if (data.success && data.chains && data.chains.u2u && data.chains.sepolia) {
+      if (data.success && data.chains && data.chains.monad && data.chains.sepolia) {
         setRelayerStatus(data)
       } else {
         console.error('Invalid relayer response format:', data)

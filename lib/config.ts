@@ -1,30 +1,32 @@
 import { defineChain } from 'viem'
 import { sepolia } from 'viem/chains'
 
-// U2U Solaris Mainnet configuration
-export const u2uSolaris = defineChain({
-  id: 39,
-  name: 'U2U Solaris Mainnet',
+// Monad Testnet configuration
+export const monadTestnet = defineChain({
+  id: 10143,
+  name: 'Monad Testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'U2U',
-    symbol: 'U2U',
+    name: 'MON',
+    symbol: 'MON',
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc-mainnet.u2u.xyz'],
+      http: ['https://testnet-rpc.monad.xyz'],
+      webSocket: ['wss://testnet-rpc.monad.xyz'],
     },
     public: {
-      http: ['https://rpc-mainnet.u2u.xyz'],
+      http: ['https://testnet-rpc.monad.xyz'],
+      webSocket: ['wss://testnet-rpc.monad.xyz'],
     },
   },
   blockExplorers: {
     default: {
-      name: 'U2U Explorer',
-      url: 'https://u2uscan.xyz',
+      name: 'Monad Explorer',
+      url: 'https://testnet.monadexplorer.com/',
     },
   },
-  testnet: false,
+  testnet: true,
 })
 
 export { sepolia }
