@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { X, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react"
+import { X, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface TransactionStep {
@@ -13,6 +13,12 @@ export interface TransactionStep {
   status: 'pending' | 'in-progress' | 'completed' | 'failed'
   txHash?: string
   explorerUrl?: string
+  hypersyncData?: {
+    blockNumber?: number
+    timestamp?: string
+    gasUsed?: string
+    status?: string
+  }
 }
 
 export interface TransactionModalProps {
@@ -117,6 +123,34 @@ export function TransactionModal({
                     >
                       View Transaction <ExternalLink className="w-3 h-3" />
                     </a>
+                  )}
+                  {step.hypersyncData && step.status === 'completed' && (
+                    <div className="mt-2 p-2 rounded-lg bg-secondary/20 border border-white/10">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Activity className="w-3 h-3 text-purple-400" />
+                        <span className="text-xs font-medium text-purple-400">Envio HyperSync Data</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {step.hypersyncData.blockNumber && (
+                          <div>
+                            <span className="text-muted-foreground">Block:</span>
+                            <span className="ml-1 font-mono">{step.hypersyncData.blockNumber}</span>
+                          </div>
+                        )}
+                        {step.hypersyncData.gasUsed && (
+                          <div>
+                            <span className="text-muted-foreground">Gas:</span>
+                            <span className="ml-1 font-mono">{step.hypersyncData.gasUsed}</span>
+                          </div>
+                        )}
+                        {step.hypersyncData.timestamp && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Time:</span>
+                            <span className="ml-1">{new Date(step.hypersyncData.timestamp).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

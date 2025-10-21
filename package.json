@@ -12,9 +12,19 @@
     "deploy:all": "hardhat run scripts/deploy.js --network u2u && hardhat run scripts/deploy.js --network sepolia",
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "test:bridge": "node scripts/test-bridge.js"
+    "test:bridge": "node scripts/test-bridge.js",
+    "hypersync:monad": "node scripts/hypersync-monad.js",
+    "hypersync:sepolia": "node scripts/hypersync-sepolia.js",
+    "analytics": "node scripts/analytics.js",
+    "envio:logger": "node scripts/envio-logger.js",
+    "envio:index": "node scripts/real-envio-indexer.js",
+    "envio:transactions": "node scripts/real-transaction-indexer.js",
+    "envio:test-tx": "node scripts/make-test-transactions.js",
+    "envio:real": "node scripts/real-envio-indexer.js",
+    "envio:monitor": "node scripts/monitor-real-transactions.js"
   },
   "dependencies": {
+    "@envio-dev/hypersync-client": "^0.6.6",
     "@ethersproject/contracts": "^5.8.0",
     "@ethersproject/providers": "^5.8.0",
     "@openzeppelin/contracts": "^5.4.0",

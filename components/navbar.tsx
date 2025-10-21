@@ -33,6 +33,9 @@ export function Navbar({ className }: { className?: string }) {
           <Link href="/bridge" className="hover:text-gray-300 transition-colors">
             Bridge
           </Link>
+          <Link href="/analytics" className="hover:text-gray-300 transition-colors">
+            Analytics
+          </Link>
         </nav>
 
         <div className="ml-auto hidden md:flex items-center gap-8">
