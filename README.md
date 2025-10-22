@@ -1,6 +1,13 @@
 # Onigiri Protocol - Cross-Chain Bridge with Envio HyperSync Integration
 
 A decentralized cross-chain bridge protocol enabling seamless token swaps between Monad Testnet and Sepolia Testnet, powered by Envio HyperSync for real-time blockchain data indexing and analytics.
+<img width="1192" height="667" alt="Screenshot from 2025-10-22 18-43-53" src="https://github.com/user-attachments/assets/379e184c-f1ae-4375-8257-eb0b504c22ed" />
+
+## MetaMask Delegation Toolkit with Smart Accounts
+The MetaMask Delegation Toolkit enables one-click, gasless transactions in your Onigiri Protocol by allowing users to pre-authorize their Smart Account to execute bridge operations on their behalf. When a user enables delegation, they sign a SIWE (Sign-In with Ethereum) message that grants their Smart Account specific permissions to call bridge functions like crossChainTransfer and completeBridge. This delegation is stored securely and allows the system to execute transactions using the user's pre-signed signature, eliminating the need for wallet popups on every swap. The integration uses Pimlico's Paymaster to sponsor gas fees and Bundler to execute UserOperations, creating a seamless experience where users can perform cross-chain swaps with a single click after the initial delegation setup.
+
+## Envio HyperSync
+It provides real-time blockchain data streaming that powers the analytics and monitoring capabilities of your Onigiri Protocol. It continuously monitors your bridge contracts on both Monad Testnet and Sepolia Testnet, streaming events like CrossChainTransfer, WETHMinted, and BridgeCompleted in real-time. This data feeds into your analytics dashboard, providing live metrics on total volume, transaction counts, success rates, and cross-chain transaction correlation. The HyperSync integration also enables real-time liquidity monitoring by tracking the relayer's wallet balances and updating the available liquidity display instantly, ensuring users always see accurate information about the system's capacity to process their swaps.
 
 ## 🎯 Envio Integration Overview
 
@@ -30,6 +37,7 @@ This project meets all requirements for the Envio bounty:
 - **Event Processing**: Parsing `CrossChainTransfer`, `WETHMinted`, and `BridgeCompleted` events
 
 ## 🏗️ Architecture
+<img width="1197" height="669" alt="Screenshot from 2025-10-22 18-53-48" src="https://github.com/user-attachments/assets/48e09d6e-d51a-45c8-a09d-0fe4805b6680" />
 
 ### Smart Contracts
 - **Monad Bridge** (`0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca`): Handles WETH minting and cross-chain transfers
