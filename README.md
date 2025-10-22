@@ -1,4 +1,4 @@
-# Onigiri Protocol - Cross-Chain Bridge with Envio HyperSync Integration
+# Onigiri Protocol - Route Across Chains
 
 A decentralized cross-chain bridge protocol enabling seamless token swaps between Monad Testnet and Sepolia Testnet, powered by Envio HyperSync for real-time blockchain data indexing and analytics.
 <img width="1192" height="667" alt="Screenshot from 2025-10-22 18-43-53" src="https://github.com/user-attachments/assets/379e184c-f1ae-4375-8257-eb0b504c22ed" />
