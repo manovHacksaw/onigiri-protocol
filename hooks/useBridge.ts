@@ -24,6 +24,14 @@ export function useBridge() {
   const [relayerError, setRelayerError] = useState<string | null>(null);
   const [pendingBridgeAmount, setPendingBridgeAmount] = useState<string | null>(null);
   const [relayerProcessing, setRelayerProcessing] = useState<boolean>(false);
+  
+  // Delegation state
+  const [isDelegationEnabled, setIsDelegationEnabled] = useState(false);
+  const [delegationStatus, setDelegationStatus] = useState<{
+    isEnabled: boolean;
+    isActive: boolean;
+    expiresAt?: string;
+  }>({ isEnabled: false, isActive: false });
 
   const { data: nativeBalance } = useBalance({
     address,
@@ -92,6 +100,39 @@ export function useBridge() {
     triggerRelayerMinting();
   }, [isConfirmed, pendingBridgeAmount, address, hash, relayerProcessing]);
 
+  // Check delegation status
+  const checkDelegationStatus = async () => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch(`/api/delegation?userAddress=${address}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setDelegationStatus({
+          isEnabled: true,
+          isActive: data.delegation.isActive,
+          expiresAt: data.delegation.expiresAt
+        });
+        setIsDelegationEnabled(data.delegation.isActive);
+      } else {
+        setDelegationStatus({ isEnabled: false, isActive: false });
+        setIsDelegationEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error checking delegation status:', error);
+      setDelegationStatus({ isEnabled: false, isActive: false });
+      setIsDelegationEnabled(false);
+    }
+  };
+
+  // Check delegation status on mount
+  useEffect(() => {
+    if (address) {
+      checkDelegationStatus();
+    }
+  }, [address]);
+
   const isOnMonad = chainId === monadTestnet.id;
   const isOnSepolia = chainId === sepolia.id;
 
@@ -103,6 +144,42 @@ export function useBridge() {
     setMintTxHash(null);
 
     try {
+      // Check if delegation is enabled and use delegated bridge
+      if (isDelegationEnabled && delegationStatus.isActive) {
+        console.log('🚀 [DELEGATED-BRIDGE] Using delegated transaction for gasless bridge');
+        
+        // Call the delegated bridge API
+        const response = await fetch('/api/delegated-swap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userAddress: address,
+            fromToken: 'MON',
+            toToken: 'ETH',
+            fromAmount: amount,
+            fromChainId: monadTestnet.id,
+            toChainId: sepolia.id,
+            recipient: address
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Delegated bridge failed');
+        }
+        
+        console.log('✅ [DELEGATED-BRIDGE] Delegated bridge successful:', result.transactionHash);
+        setTxHash(result.transactionHash);
+        setMintTxHash(result.transactionHash);
+        return;
+      }
+      
+      // Fallback to regular bridge flow
+      console.log('🔄 [REGULAR-BRIDGE] Using regular bridge flow');
+      
       // First, send MON to the bridge contract on Monad Testnet
       writeContract({
         address: MONAD_BRIDGE_ADDRESS,
@@ -220,5 +297,9 @@ export function useBridge() {
     targetNetwork: getTargetNetwork(),
     bridgeFromMonad,
     bridgeFromSepolia,
+    // Delegation state
+    isDelegationEnabled,
+    delegationStatus,
+    checkDelegationStatus,
   };
 }

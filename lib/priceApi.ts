@@ -26,15 +26,54 @@ const MOCK_PRICES: Record<string, number> = {
 };
 
 export async function fetchTokenPrice(symbol: string): Promise<number> {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // In production, you would make an actual API call here
-  // Example: const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd`);
-  
-  const price = MOCK_PRICES[symbol] || 1;
-  console.log(`Fetching price for ${symbol}: $${price}`);
-  return price;
+  try {
+    // Try to fetch real prices from CoinGecko API
+    let coinId = '';
+    switch (symbol) {
+      case 'ETH':
+        coinId = 'ethereum';
+        break;
+      case 'MON':
+        // Monad might not be on CoinGecko yet, use fallback
+        return MOCK_PRICES[symbol] || 0.006144;
+      case 'USDC':
+        coinId = 'usd-coin';
+        break;
+      case 'USDT':
+        coinId = 'tether';
+        break;
+      case 'WBTC':
+        coinId = 'wrapped-bitcoin';
+        break;
+      default:
+        return MOCK_PRICES[symbol] || 1;
+    }
+    
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      const price = data[coinId]?.usd;
+      if (price) {
+        console.log(`✅ Real price for ${symbol}: $${price}`);
+        return price;
+      }
+    }
+    
+    console.log(`⚠️ Failed to fetch real price for ${symbol}, using fallback`);
+    return MOCK_PRICES[symbol] || 1;
+    
+  } catch (error) {
+    console.log(`⚠️ Error fetching price for ${symbol}:`, error);
+    return MOCK_PRICES[symbol] || 1;
+  }
 }
 
 export async function getSwapQuote(

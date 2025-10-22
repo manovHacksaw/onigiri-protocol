@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/navbar";
 import { BokehBackground } from "@/components/ui/bokeh-background";
 import { BridgeCard } from "@/components/bridge-card";
+import { DelegationToggle } from "@/components/delegation-toggle";
 
 export default function BridgePage() {
   return (
@@ -17,8 +18,18 @@ export default function BridgePage() {
             {"across chains."}
           </h1>
 
-          <div className="mt-8">
-            <BridgeCard />
+          <div className="mt-8 w-full max-w-4xl">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              {/* Main Bridge Card */}
+              <div className="lg:col-span-2">
+                <BridgeCard />
+              </div>
+              
+              {/* Delegation Toggle */}
+              <div className="lg:col-span-1">
+                <DelegationToggle />
+              </div>
+            </div>
           </div>
 
           <p className="mt-6 max-w-xl text-center text-muted-foreground">

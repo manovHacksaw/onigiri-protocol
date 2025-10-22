@@ -16,7 +16,7 @@ export function Navbar({ className }: { className?: string }) {
             style={{ backgroundColor: "var(--color-brand)" }}
           />
           <img src="/logo.png" alt="logo" className="w-10 h-10" />
-          <span className="text-white tracking-tight text-lg font-semibold">Pocket Protocol</span>
+          <span className="text-white tracking-tight text-lg font-semibold">Onigiri Protocol</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-12 text-base text-white">

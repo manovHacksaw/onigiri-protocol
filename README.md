@@ -1,4 +1,4 @@
-# Pocket Swap - Cross-Chain Bridge with Envio HyperSync Integration
+# Onigiri Protocol - Cross-Chain Bridge with Envio HyperSync Integration
 
 A decentralized cross-chain bridge protocol enabling seamless token swaps between Monad Testnet and Sepolia Testnet, powered by Envio HyperSync for real-time blockchain data indexing and analytics.
 
@@ -47,7 +47,7 @@ This project meets all requirements for the Envio bounty:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd pocket-swap
+cd onigiri-protocol
 
 # Install dependencies
 bun install
@@ -323,7 +323,7 @@ bun run envio:logger
 ### Project Structure
 
 ```
-pocket-swap/
+onigiri-protocol/
 ├── app/
 │   ├── api/
 │   │   └── analytics/          # Envio-powered analytics API

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Real Transaction Indexer for Pocket Swap
+ * Real Transaction Indexer for Onigiri Protocol
  * Indexes actual swap and bridge transactions from your contracts
  */
 
@@ -35,7 +35,7 @@ class RealTransactionIndexer {
   }
 
   async start() {
-    console.log('🚀 [ENVIO] Starting REAL Transaction Indexer for Pocket Swap...');
+    console.log('🚀 [ENVIO] Starting REAL Transaction Indexer for Onigiri Protocol...');
     console.log('📡 [ENVIO] Monitoring your actual bridge contracts...');
     console.log('');
 

@@ -26,6 +26,14 @@ export function useCrossChainSwap() {
   const { sendTransaction, data: sendHash, isPending: isSendPending, error: sendError } = useSendTransaction();
   const { switchChain } = useSwitchChain();
   
+  // Delegation state
+  const [isDelegationEnabled, setIsDelegationEnabled] = useState(false);
+  const [delegationStatus, setDelegationStatus] = useState<{
+    isEnabled: boolean;
+    isActive: boolean;
+    expiresAt?: string;
+  }>({ isEnabled: false, isActive: false });
+  
   // Track the current transaction hash
   const [currentTxHash, setCurrentTxHash] = useState<string | null>(null);
   const sendHashRef = useRef<string | null>(null);
@@ -99,6 +107,39 @@ export function useCrossChainSwap() {
     setIsModalOpen(true);
   }, []);
 
+  // Check delegation status
+  const checkDelegationStatus = useCallback(async () => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch(`/api/delegation?userAddress=${address}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setDelegationStatus({
+          isEnabled: true,
+          isActive: data.delegation.isActive,
+          expiresAt: data.delegation.expiresAt
+        });
+        setIsDelegationEnabled(data.delegation.isActive);
+      } else {
+        setDelegationStatus({ isEnabled: false, isActive: false });
+        setIsDelegationEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error checking delegation status:', error);
+      setDelegationStatus({ isEnabled: false, isActive: false });
+      setIsDelegationEnabled(false);
+    }
+  }, [address]);
+
+  // Check delegation status on mount
+  useEffect(() => {
+    if (address) {
+      checkDelegationStatus();
+    }
+  }, [address, checkDelegationStatus]);
+
   const getQuote = useCallback(async (params: Omit<SwapParams, 'recipient'>) => {
     setIsLoadingQuote(true);
     try {
@@ -139,6 +180,86 @@ export function useCrossChainSwap() {
       
       // Initialize transaction modal
       initializeTransactionSteps(direction);
+      
+      // Check if delegation is enabled and use delegated swap
+      if (isDelegationEnabled && delegationStatus.isActive) {
+        console.log('🚀 [DELEGATED-SWAP] Using delegated transaction for gasless swap');
+        
+        updateTransactionStep('signature', { 
+          status: 'in-progress',
+          title: 'Executing gasless transaction...',
+          description: 'Using MetaMask delegation for one-click swap'
+        });
+        setCurrentStep('signature');
+        
+        // Call the delegated swap API
+        const response = await fetch('/api/delegated-swap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userAddress: address,
+            fromToken: params.fromToken,
+            toToken: params.toToken,
+            fromAmount: params.fromAmount,
+            fromChainId: params.fromChainId,
+            toChainId: params.toChainId,
+            recipient: params.recipient
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Delegated swap failed');
+        }
+        
+        console.log('✅ [DELEGATED-SWAP] Delegated swap successful:', result.transactionHash);
+        
+        // Update transaction steps for delegated swap
+        updateTransactionStep('signature', { 
+          status: 'completed',
+          title: 'Gasless transaction executed',
+          description: 'Delegated swap completed successfully',
+          txHash: result.transactionHash,
+          explorerUrl: getExplorerUrl(result.transactionHash, fromChainId)
+        });
+        
+        updateTransactionStep('source-confirmation', { 
+          status: 'completed',
+          title: 'Transaction confirmed',
+          description: 'Delegated transaction confirmed on blockchain'
+        });
+        
+        updateTransactionStep('relayer-processing', { 
+          status: 'completed',
+          title: 'Cross-chain processing',
+          description: 'Bridge operation completed via delegation'
+        });
+        
+        updateTransactionStep('completion', { 
+          status: 'completed',
+          title: 'Delegated swap successful!',
+          description: 'One-click gasless swap completed'
+        });
+        setCurrentStep('completion');
+        
+        setBridgeStatus({ 
+          step: 'target-confirmed', 
+          sourceTxHash: result.transactionHash,
+          targetTxHash: result.transactionHash, // For delegated swaps, it's the same transaction
+          direction
+        });
+        
+        return { 
+          monadTx: direction === 'monad-to-sepolia' ? result.transactionHash : result.transactionHash, 
+          sepoliaTx: direction === 'monad-to-sepolia' ? result.transactionHash : result.transactionHash 
+        };
+      }
+      
+      // Fallback to regular transaction flow
+      console.log('🔄 [REGULAR-SWAP] Using regular transaction flow');
       
       // Step 1: Get relayer address
         const relayerStatusResponse = await fetch('/api/relayer');
@@ -370,5 +491,9 @@ export function useCrossChainSwap() {
     currentStep,
     modalError,
     setIsModalOpen,
+    // Delegation state
+    isDelegationEnabled,
+    delegationStatus,
+    checkDelegationStatus,
   };
 }

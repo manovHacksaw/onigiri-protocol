@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Demo Transaction Indexer for Pocket Swap
+ * Demo Transaction Indexer for Onigiri Protocol
  * Demonstrates real transaction indexing with your bridge contracts
  */
 
@@ -27,7 +27,7 @@ class DemoTransactionIndexer {
   }
 
   async start() {
-    console.log('🚀 [ENVIO] Starting Demo Transaction Indexer for Pocket Swap...');
+    console.log('🚀 [ENVIO] Starting Demo Transaction Indexer for Onigiri Protocol...');
     console.log('📡 [ENVIO] Monitoring your bridge contracts...');
     console.log('');
 

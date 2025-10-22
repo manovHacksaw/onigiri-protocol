@@ -1,0 +1,105 @@
+{
+  "0x1234567890123456789012345678901234567890": {
+    "userAddress": "0x1234567890123456789012345678901234567890",
+    "smartAccountAddress": "0x1234567890123456789012345678901234567890",
+    "signature": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+    "capabilities": [
+      {
+        "target": "0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca",
+        "permissions": [
+          {
+            "parentCapability": "eth_sendTransaction",
+            "caveats": [
+              {
+                "type": "restrictReturnedEthAccounts",
+                "value": [
+                  "0x1234567890123456789012345678901234567890"
+                ]
+              },
+              {
+                "type": "filterResponse",
+                "value": {
+                  "method": "eth_sendTransaction",
+                  "params": {
+                    "to": "0x790f07dF19F95aAbFAed3BfED01c07724c9a6cca",
+                    "data": {
+                      "function": [
+                        "bridge",
+                        "mintWETH"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "target": "0xe564df234366234b279c9a5d547c94AA4a5C08F3",
+        "permissions": [
+          {
+            "parentCapability": "eth_sendTransaction",
+            "caveats": [
+              {
+                "type": "restrictReturnedEthAccounts",
+                "value": [
+                  "0x1234567890123456789012345678901234567890"
+                ]
+              },
+              {
+                "type": "filterResponse",
+                "value": {
+                  "method": "eth_sendTransaction",
+                  "params": {
+                    "to": "0xe564df234366234b279c9a5d547c94AA4a5C08F3",
+                    "data": {
+                      "function": [
+                        "completeBridge",
+                        "deposit"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "target": "0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623",
+        "permissions": [
+          {
+            "parentCapability": "eth_sendTransaction",
+            "caveats": [
+              {
+                "type": "restrictReturnedEthAccounts",
+                "value": [
+                  "0x1234567890123456789012345678901234567890"
+                ]
+              },
+              {
+                "type": "filterResponse",
+                "value": {
+                  "method": "eth_sendTransaction",
+                  "params": {
+                    "to": "0xdfd0480D0c1f59a0c5eAeadfDE047840F6813623",
+                    "data": {
+                      "function": [
+                        "approve",
+                        "transferFrom",
+                        "transfer"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "isActive": true,
+    "expiresAt": "2025-11-21T11:39:56.448Z"
+  }
+}

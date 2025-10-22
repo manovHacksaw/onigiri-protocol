@@ -1,5 +1,6 @@
 import { SwapCard } from '@/components/swap-card'
 import { RelayerLiquidity } from '@/components/relayer-liquidity'
+import { DelegationToggle } from '@/components/delegation-toggle'
 import { Navbar } from '@/components/navbar'
 import { BokehBackground } from '@/components/ui/bokeh-background'
 import React from 'react'
@@ -24,8 +25,12 @@ const SwapPage = () => {
                 <SwapCard />
               </div>
               
-              {/* Relayer Liquidity */}
-              <div className="lg:col-span-1">
+              {/* Sidebar */}
+              <div className="lg:col-span-1 space-y-6">
+                {/* Delegation Toggle */}
+                <DelegationToggle />
+                
+                {/* Relayer Liquidity */}
                 <RelayerLiquidity />
               </div>
             </div>

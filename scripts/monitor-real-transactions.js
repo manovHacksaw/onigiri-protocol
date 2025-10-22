@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Real Transaction Monitor for Pocket Swap
+ * Real Transaction Monitor for Onigiri Protocol
  * Monitors your actual bridge contracts for real transactions
  */
 
